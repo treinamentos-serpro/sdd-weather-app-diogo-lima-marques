@@ -1,3 +1,4 @@
+import { getForecastStart, parseForecastDate } from '../lib/date';
 import { getWeatherCondition } from '../lib/weatherCodes';
 import type { City, CurrentWeather, ForecastDay, WeatherData } from '../types/weather';
 
@@ -93,8 +94,14 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function mapCurrent(value: Record<string, unknown>, offset: unknown): CurrentWeather {
+function mapCurrent(
+  value: unknown,
+  offset: unknown,
+  requestedAt: number,
+  now: number,
+): CurrentWeather | null {
   if (
+    !isRecord(value) ||
     !isFiniteNumber(value.temperature_2m) ||
     typeof value.time !== 'string' ||
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value.time) ||
@@ -102,7 +109,7 @@ function mapCurrent(value: Record<string, unknown>, offset: unknown): CurrentWea
     !Number.isInteger(offset) ||
     Math.abs(offset) > 86_400
   ) {
-    throw new WeatherServiceError(INCOMPLETE_ERROR_MESSAGE);
+    return null;
   }
   // Open-Meteo retorna o horário local sem offset no próprio campo time.
   const localTime = Date.parse(`${value.time}Z`);
@@ -110,9 +117,10 @@ function mapCurrent(value: Record<string, unknown>, offset: unknown): CurrentWea
     !Number.isFinite(localTime) ||
     new Date(localTime).toISOString().slice(0, value.time.length) !== value.time
   ) {
-    throw new WeatherServiceError(INCOMPLETE_ERROR_MESSAGE);
+    return null;
   }
   const observedAt = localTime - offset * 1000;
+  if (observedAt < requestedAt - 60 * 60 * 1000 || observedAt > now) return null;
   const weatherCode = isFiniteNumber(value.weather_code) ? value.weather_code : undefined;
 
   return {
@@ -129,39 +137,43 @@ function mapCurrent(value: Record<string, unknown>, offset: unknown): CurrentWea
   };
 }
 
-function mapForecast(daily: Record<string, unknown>): ForecastDay[] {
+function mapForecast(daily: unknown, start: number | null): ForecastDay[] {
+  if (!isRecord(daily) || start === null) return [];
   const dates = daily.time;
   const minimums = daily.temperature_2m_min;
   const maximums = daily.temperature_2m_max;
   const codes = daily.weather_code;
   if (
     !Array.isArray(dates) ||
-    dates.length < 5 ||
     !Array.isArray(minimums) ||
     !Array.isArray(maximums) ||
     !Array.isArray(codes)
   ) {
-    throw new WeatherServiceError(INCOMPLETE_ERROR_MESSAGE);
+    return [];
   }
 
-  return dates.slice(0, 5).map((date: unknown, index): ForecastDay => {
+  const counts = new Map<unknown, number>();
+  for (const date of dates) counts.set(date, (counts.get(date) ?? 0) + 1);
+  const forecast: ForecastDay[] = [];
+  for (const [index, date] of dates.entries()) {
+    const timestamp = parseForecastDate(date);
     const min: unknown = minimums[index];
     const max: unknown = maximums[index];
     const code: unknown = codes[index];
     const condition = isFiniteNumber(code) ? getWeatherCondition(code) : undefined;
     if (
       typeof date !== 'string' ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-      !Number.isFinite(Date.parse(date)) ||
-      new Date(date).toISOString().slice(0, 10) !== date ||
-      (index > 0 && Date.parse(date) - Date.parse(dates[index - 1]) !== 86_400_000) ||
+      timestamp === null ||
+      timestamp < start ||
+      timestamp > start + 4 * 86_400_000 ||
+      counts.get(date) !== 1 ||
       !isFiniteNumber(min) ||
       !isFiniteNumber(max) ||
       min > max ||
       !isFiniteNumber(code) ||
       !condition
     ) {
-      throw new WeatherServiceError(INCOMPLETE_ERROR_MESSAGE);
+      continue;
     }
     const precipitation: unknown = Array.isArray(daily.precipitation_sum)
       ? daily.precipitation_sum[index]
@@ -169,16 +181,19 @@ function mapForecast(daily: Record<string, unknown>): ForecastDay[] {
     const probability: unknown = Array.isArray(daily.precipitation_probability_max)
       ? daily.precipitation_probability_max[index]
       : undefined;
-    return {
+    forecast.push({
       date,
       minCelsius: min,
       maxCelsius: max,
       weatherCode: code,
       condition: condition.description,
       ...(isFiniteNumber(precipitation) ? { precipitationMm: precipitation } : {}),
-      ...(isFiniteNumber(probability) ? { precipitationProbabilityPercent: probability } : {}),
-    };
-  });
+      ...(isFiniteNumber(probability) && probability >= 0 && probability <= 100
+        ? { precipitationProbabilityPercent: probability }
+        : {}),
+    });
+  }
+  return forecast.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function getWeather(city: City): Promise<WeatherData> {
@@ -195,27 +210,24 @@ export async function getWeather(city: City): Promise<WeatherData> {
     timezone: 'auto',
     forecast_days: '5',
   });
+  const requestedAt = Date.now();
   const data = await fetchWithTimeout(`${FORECAST_URL}?${params}`);
-  if (
-    !isRecord(data) ||
-    data.error ||
-    !isRecord(data.current) ||
-    !isRecord(data.daily) ||
-    typeof data.timezone !== 'string'
-  ) {
+  if (!isRecord(data) || data.error) {
     throw new WeatherServiceError(INCOMPLETE_ERROR_MESSAGE);
   }
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: data.timezone });
-  } catch (cause) {
-    throw new WeatherServiceError(INCOMPLETE_ERROR_MESSAGE, { cause });
+  const now = Date.now();
+  const start = getForecastStart(data.timezone, now);
+  const current = mapCurrent(data.current, data.utc_offset_seconds, requestedAt, now);
+  const forecast = mapForecast(data.daily, start);
+  if (!current && forecast.length === 0) {
+    throw new WeatherServiceError(INCOMPLETE_ERROR_MESSAGE);
   }
 
   return {
     city,
-    timezone: data.timezone,
-    current: mapCurrent(data.current, data.utc_offset_seconds),
-    forecast: mapForecast(data.daily),
-    forecastIsIncomplete: false,
+    timezone: start !== null && typeof data.timezone === 'string' ? data.timezone : null,
+    current,
+    forecast,
+    forecastIsIncomplete: forecast.length < 5,
   };
 }

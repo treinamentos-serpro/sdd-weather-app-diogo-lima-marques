@@ -52,6 +52,13 @@ describe('App integrado ao useWeather', () => {
     await user.keyboard('{Enter}');
     expect(screen.getByText('74,3 °F')).toBeInTheDocument();
     expect(within(screen.getByRole('main')).getAllByText(/°F$/)).toHaveLength(11);
+    for (let iteration = 0; iteration < 3; iteration += 1) {
+      await user.click(screen.getByRole('button', { name: '°C' }));
+      expect(screen.getByText('23,5 °C')).toBeInTheDocument();
+      expect(within(screen.getByRole('main')).getAllByText(/°C$/)).toHaveLength(11);
+      await user.click(screen.getByRole('button', { name: '°F' }));
+      expect(screen.getByText('74,3 °F')).toBeInTheDocument();
+    }
     expect(getWeather).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(mockWeatherData)).toBe(original);
     expect(screen.getByRole('status', { name: 'Resultado da busca' })).toHaveTextContent(
@@ -91,7 +98,9 @@ describe('App integrado ao useWeather', () => {
     await user.click(screen.getByRole('button', { name: '°F' }));
     await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Falha de rede.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível carregar os dados meteorológicos. Tente novamente.',
+    );
     expect(screen.queryByText('74,3 °F')).not.toBeInTheDocument();
     expect(getWeather).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
@@ -134,5 +143,65 @@ describe('App integrado ao useWeather', () => {
     expect(screen.getByRole('searchbox')).toHaveFocus();
     expect(searchCities).not.toHaveBeenCalled();
     expect(getWeather).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'current',
+    'forecast',
+  ] as const)('mantém a seção válida e oferece retry quando %s está indisponível', async (section) => {
+    vi.mocked(getWeather).mockResolvedValueOnce({
+      ...mockWeatherData,
+      ...(section === 'current' ? { current: null } : { forecast: [], forecastIsIncomplete: true }),
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      section === 'current'
+        ? 'Clima atual indisponível para esta cidade.'
+        : 'Previsão indisponível para esta cidade.',
+    );
+    if (section === 'current') {
+      expect(screen.getByRole('heading', { name: 'Clima atual em São Paulo' })).toBeInTheDocument();
+      expect(screen.getAllByRole('listitem')).toHaveLength(5);
+      expect(screen.queryByText('23,5 °C')).not.toBeInTheDocument();
+    } else {
+      expect(screen.getByText('23,5 °C')).toBeInTheDocument();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole('status', { name: 'Resultado da busca' })).toHaveTextContent(
+      'Dados meteorológicos de São Paulo parcialmente disponíveis.',
+    );
+    await user.click(screen.getByRole('button', { name: '°F' }));
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(await screen.findByText('74,3 °F')).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem')).toHaveLength(5);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(searchCities).toHaveBeenCalledTimes(1);
+    expect(getWeather).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  it('exibe os dias válidos e o aviso em uma previsão parcial', async () => {
+    vi.mocked(getWeather).mockResolvedValueOnce({
+      ...mockWeatherData,
+      forecast: mockWeatherData.forecast.slice(0, 2),
+      forecastIsIncomplete: true,
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+
+    expect(await screen.findByText('23,5 °C')).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(
+      screen.getByText('Previsão incompleta. Alguns dias estão indisponíveis.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Resultado da busca' })).toHaveTextContent(
+      'Dados meteorológicos de São Paulo parcialmente disponíveis.',
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

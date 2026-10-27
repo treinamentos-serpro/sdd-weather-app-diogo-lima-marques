@@ -21,6 +21,9 @@ describe('formatação da temperatura', () => {
   it.each([
     [18.123, 'celsius', '18,1 °C'],
     [18.123, 'fahrenheit', '64,6 °F'],
+    [18.149, 'fahrenheit', '64,7 °F'],
+    [-2.56, 'celsius', '-2,6 °C'],
+    [-2.56, 'fahrenheit', '27,4 °F'],
     [-40, 'fahrenheit', '-40,0 °F'],
   ] as const)('arredonda e exibe a unidade em %s °C (%s)', (celsius, unit, expected) => {
     expect(formatTemperature(celsius, unit, 'pt-BR')).toBe(expected);

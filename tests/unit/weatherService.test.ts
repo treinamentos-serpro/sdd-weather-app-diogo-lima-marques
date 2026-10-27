@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchWithTimeout,
   getWeather,
@@ -22,6 +22,11 @@ function mockResponse(body: unknown, status = 200) {
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-27T17:00:00Z'));
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -86,6 +91,7 @@ describe('searchCities', () => {
     null,
     [],
     { error: true, reason: 'Falha' },
+    { error: true, results: [cityResult] },
     { results: null },
     { results: {} },
     { results: [null] },
@@ -268,37 +274,117 @@ describe('getWeather', () => {
     expect(result.forecast[0]).not.toHaveProperty('precipitationProbabilityPercent');
   });
 
-  it.each(['current', 'daily'])('rejeita resposta sem %s', async (section) => {
+  it('omite precipitação null sem convertê-la em zero no clima atual e nos cinco dias', async () => {
+    const data = forecastResponse();
+    mockResponse({
+      ...data,
+      current: { ...data.current, precipitation: null },
+      daily: { ...data.daily, precipitation_sum: [null, null, null, null, null] },
+    });
+
+    const result = await getWeather(city);
+
+    expect(result.current).not.toHaveProperty('precipitationMm');
+    expect(result.forecast).toHaveLength(5);
+    for (const day of result.forecast) {
+      expect(day).not.toHaveProperty('precipitationMm');
+    }
+  });
+
+  it.each(['current', 'daily'])('preserva a seção válida na resposta sem %s', async (section) => {
     const data: Record<string, unknown> = forecastResponse();
     delete data[section];
     mockResponse(data);
 
-    await expect(getWeather(city)).rejects.toMatchObject({
-      name: 'WeatherServiceError',
-      message: 'Resposta meteorológica incompleta.',
-    });
+    const result = await getWeather(city);
+
+    if (section === 'current') {
+      expect(result.current).toBeNull();
+      expect(result.forecast).toHaveLength(5);
+      expect(result.forecastIsIncomplete).toBe(false);
+    } else {
+      expect(result.current?.temperatureCelsius).toBe(22.5);
+      expect(result.forecast).toEqual([]);
+      expect(result.forecastIsIncomplete).toBe(true);
+    }
   });
 
   it.each([
     { current: null },
-    { daily: null },
     { current: {} },
-    { daily: {} },
-    { timezone: 'Fuso/Inválido' },
     { utc_offset_seconds: null },
+    { utc_offset_seconds: 1.5 },
+    { utc_offset_seconds: 86401 },
+    { current: { temperature_2m: 20 } },
     { current: { time: 'inválido', temperature_2m: 20 } },
     { current: { time: '2026-02-30T14:00', temperature_2m: 20 } },
     { current: { time: '2026-10-27T14:00', temperature_2m: null } },
-    { daily: { ...forecastResponse().daily, time: ['2026-10-27'] } },
-    { daily: { ...forecastResponse().daily, temperature_2m_min: [15] } },
-    { daily: { ...forecastResponse().daily, weather_code: [999, 1, 2, 3, 61] } },
-    { daily: { ...forecastResponse().daily, temperature_2m_max: [0, 26, 27, 28, 29] } },
-    { daily: { ...forecastResponse().daily, time: Array(5).fill('2026-10-27') } },
-    { error: true },
-  ])('rejeita resposta incompleta ou inválida: %j', async (override) => {
+  ])('mantém a previsão quando o clima atual é inválido: %j', async (override) => {
     mockResponse({ ...forecastResponse(), ...override });
 
+    const result = await getWeather(city);
+
+    expect(result.current).toBeNull();
+    expect(result.forecast).toHaveLength(5);
+  });
+
+  it.each([
+    undefined,
+    null,
+    '',
+    'Fuso/Inválido',
+    '+03:00',
+  ])('mantém clima atual e sinaliza previsão indisponível para fuso %j', async (timezone) => {
+    mockResponse({ ...forecastResponse(), timezone });
+
+    const result = await getWeather(city);
+
+    expect(result.timezone).toBeNull();
+    expect(result.current?.temperatureCelsius).toBe(22.5);
+    expect(result.forecast).toEqual([]);
+  });
+
+  it.each([
+    null,
+    [],
+    {},
+    { error: true },
+    { ...forecastResponse(), error: true },
+    { ...forecastResponse(), current: null, daily: null },
+    { ...forecastResponse(), current: {}, daily: {} },
+  ])('rejeita erro de API ou resposta sem nenhuma seção válida: %j', async (body) => {
+    mockResponse(body);
+
     await expect(getWeather(city)).rejects.toBeInstanceOf(WeatherServiceError);
+  });
+
+  it.each([
+    null,
+    {},
+    { ...forecastResponse().daily, time: [] },
+    { ...forecastResponse().daily, temperature_2m_max: null },
+    { ...forecastResponse().daily, weather_code: null },
+    { ...forecastResponse().daily, time: Array(5).fill('2026-10-27') },
+  ])('mantém o clima atual quando nenhum dia da previsão é válido: %j', async (daily) => {
+    mockResponse({ ...forecastResponse(), daily });
+
+    const result = await getWeather(city);
+
+    expect(result.current?.temperatureCelsius).toBe(22.5);
+    expect(result.forecast).toEqual([]);
+    expect(result.forecastIsIncomplete).toBe(true);
+  });
+
+  it('aceita mínima igual à máxima, inclusive quando ambas são zero', async () => {
+    const data = forecastResponse();
+    data.daily.temperature_2m_min[0] = 0;
+    data.daily.temperature_2m_max[0] = 0;
+    mockResponse(data);
+
+    const result = await getWeather(city);
+
+    expect(result.forecast[0]).toMatchObject({ minCelsius: 0, maxCelsius: 0 });
+    expect(result.forecastIsIncomplete).toBe(false);
   });
 
   it('rejeita falha HTTP em vez de mapear os dados', async () => {
@@ -306,9 +392,184 @@ describe('getWeather', () => {
 
     await expect(getWeather(city)).rejects.toBeInstanceOf(WeatherServiceError);
   });
+
+  it.each([
+    '2026-10-27T12:59:59',
+    '2026-10-27T14:00:01',
+  ])('descarta observação antiga ou futura (%s) sem perder a previsão', async (time) => {
+    const data = forecastResponse();
+    mockResponse({ ...data, current: { ...data.current, time } });
+
+    const result = await getWeather(city);
+
+    expect(result.current).toBeNull();
+    expect(result.forecast).toHaveLength(5);
+  });
+
+  it.each([
+    '2026-10-27T13:00:00',
+    '2026-10-27T14:00:00',
+  ])('aceita os limites inclusivos de 60 minutos e do instante atual (%s)', async (time) => {
+    const data = forecastResponse();
+    mockResponse({ ...data, current: { ...data.current, time } });
+
+    expect((await getWeather(city)).current?.temperatureCelsius).toBe(22.5);
+  });
+
+  it.each([
+    '2026-10-27T13:00:00',
+    '2026-10-27T14:01:00',
+  ])('avalia idade contra a solicitação e futuro contra a validação (%s)', async (time) => {
+    const data = forecastResponse();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        vi.setSystemTime(new Date('2026-10-27T17:02:00Z'));
+        return Response.json({ ...data, current: { ...data.current, time } });
+      }),
+    );
+
+    expect((await getWeather(city)).current?.temperatureCelsius).toBe(22.5);
+  });
+
+  it('mantém temperatura zero quando o código WMO atual está ausente', async () => {
+    const data = forecastResponse();
+    mockResponse({ ...data, current: { time: data.current.time, temperature_2m: 0 } });
+
+    expect((await getWeather(city)).current).toEqual({
+      temperatureCelsius: 0,
+      observedAt: '2026-10-27T17:00:00.000Z',
+      condition: 'Condição indisponível',
+    });
+  });
+
+  it.each([
+    [{ temperature_2m_min: [15] }, [0]],
+    [{ weather_code: [999, 1, 2, 3, 61] }, [1, 2, 3, 4]],
+    [{ temperature_2m_max: [0, 26, 27, 28, 29] }, [1, 2, 3, 4]],
+    [{ temperature_2m_min: [null, 16, 17, 18, 19] }, [1, 2, 3, 4]],
+    [
+      { time: ['2026-02-30', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31'] },
+      [1, 2, 3, 4],
+    ],
+  ] as const)('filtra dias inválidos sem perder os válidos: %j', async (override, validIndices) => {
+    const data = forecastResponse();
+    mockResponse({ ...data, daily: { ...data.daily, ...override } });
+
+    const result = await getWeather(city);
+    expect(result.current?.temperatureCelsius).toBe(22.5);
+    expect(result.forecast.map((day) => day.date)).toEqual(
+      validIndices.map((index) => data.daily.time[index]),
+    );
+    expect(result.forecast.map((day) => day.maxCelsius)).toEqual(
+      validIndices.map((index) => data.daily.temperature_2m_max[index]),
+    );
+    expect(result.forecastIsIncomplete).toBe(true);
+  });
+
+  it('omite todas as ocorrências de data duplicada, mesmo se uma tiver dado inválido', async () => {
+    const data = forecastResponse();
+    data.daily.time[1] = data.daily.time[0];
+    data.daily.temperature_2m_min[1] = 100;
+    mockResponse(data);
+
+    const result = await getWeather(city);
+
+    expect(result.forecast.map((day) => day.date)).toEqual(data.daily.time.slice(2));
+    expect(result.forecastIsIncomplete).toBe(true);
+  });
+
+  it('ordena os dias mantendo o alinhamento de todos os arrays da API', async () => {
+    const data = forecastResponse();
+    for (const array of Object.values(data.daily)) array.reverse();
+    mockResponse(data);
+
+    const result = await getWeather(city);
+
+    expect(
+      result.forecast.map((day) => [
+        day.date,
+        day.minCelsius,
+        day.maxCelsius,
+        day.weatherCode,
+        day.precipitationMm,
+        day.precipitationProbabilityPercent,
+      ]),
+    ).toEqual([
+      ['2026-10-27', 15, 25, 0, 0, 0],
+      ['2026-10-28', 16, 26, 1, 0.1, 10],
+      ['2026-10-29', 17, 27, 2, 0.2, 20],
+      ['2026-10-30', 18, 28, 3, 0.3, 30],
+      ['2026-10-31', 19, 29, 61, 4.7, 80],
+    ]);
+    expect(result.forecastIsIncomplete).toBe(false);
+  });
+
+  it('filtra datas fora de hoje até hoje + 4 sem substituir as lacunas', async () => {
+    const data = forecastResponse();
+    data.daily.time[0] = '2026-10-26';
+    data.daily.time[4] = '2026-11-01';
+    mockResponse(data);
+
+    const result = await getWeather(city);
+
+    expect(result.forecast.map((day) => day.date)).toEqual(data.daily.time.slice(1, 4));
+    expect(result.forecastIsIncomplete).toBe(true);
+  });
+
+  it.each([
+    ['America/Sao_Paulo', -10800, '2026-10-27T22:30', 5, '2026-10-27'],
+    ['Asia/Tokyo', 32400, '2026-10-28T10:30', 4, '2026-10-28'],
+  ] as const)('usa o dia local de %s na mudança de data UTC', async (timezone, offset, time, count, firstDate) => {
+    vi.setSystemTime(new Date('2026-10-28T01:30:00Z'));
+    const data = forecastResponse();
+    mockResponse({
+      ...data,
+      timezone,
+      utc_offset_seconds: offset,
+      current: { ...data.current, time },
+    });
+
+    const result = await getWeather(city);
+
+    expect(result.current?.observedAt).toBe('2026-10-28T01:30:00.000Z');
+    expect(result.forecast).toHaveLength(count);
+    expect(result.forecast[0].date).toBe(firstDate);
+    expect(result.forecastIsIncomplete).toBe(count < 5);
+  });
+
+  it.each([
+    null,
+    -1,
+    101,
+  ])('omite probabilidade inválida %s sem inventar porcentagem', async (value) => {
+    const data = forecastResponse();
+    mockResponse({
+      ...data,
+      daily: { ...data.daily, precipitation_probability_max: [value, 0, 100, 30, 80] },
+    });
+
+    const result = await getWeather(city);
+
+    expect(result.forecast[0]).not.toHaveProperty('precipitationProbabilityPercent');
+    expect(result.forecast[1].precipitationProbabilityPercent).toBe(0);
+    expect(result.forecast[2].precipitationProbabilityPercent).toBe(100);
+  });
 });
 
 describe('fetchWithTimeout', () => {
+  it.each([
+    searchCities.bind(null, 'Cidade'),
+    getWeather.bind(null, city),
+  ])('rejeita JSON inválido em ambas as operações', async (operation) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{')));
+
+    await expect(operation()).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      message: 'Resposta inválida do serviço.',
+    });
+  });
+
   it.each([
     searchCities.bind(null, 'Cidade'),
     getWeather.bind(null, city),

@@ -80,7 +80,9 @@ test('erro de forecast oferece retry sem repetir geocoding', async ({ page }) =>
   await page.goto('/');
   await page.getByRole('searchbox').fill('São Paulo');
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('HTTP 503');
+  await expect(page.getByRole('alert')).toHaveText(
+    'Não foi possível carregar os dados meteorológicos. Tente novamente.',
+  );
   await page.getByRole('button', { name: 'Tentar novamente' }).click();
   await expect(page.getByText('23,5 °C', { exact: true })).toBeVisible();
   expect(searchRequests).toBe(1);

@@ -70,6 +70,11 @@ os AC, NFR e MS da especificação sempre que aplicável.
 
 ### T-05 — Validar instantes, fusos e datas locais
 
+- **Implementação:** `src/lib/date.ts` centraliza validação de datas e cálculo
+  do dia local; `mapCurrent` no serviço aplica o offset e os limites de idade.
+  `tests/unit/date.test.ts` cobre mudança de ano, ano bissexto e horário de
+  verão; `tests/unit/weatherService.test.ts` cobre dois fusos, limites
+  inclusivos de 60 minutos/agora e tempo decorrido durante a requisição.
 - **Descrição:** Criar funções puras para validar observações meteorológicas
   e calcular datas locais da previsão.
 - **Critérios de aceite:**
@@ -114,14 +119,17 @@ os AC, NFR e MS da especificação sempre que aplicável.
 
 - **Implementação desta entrega:** `getWeather(city)` em
   `src/services/weatherService.ts` consulta `current` e `daily` juntos e retorna
-  exatamente cinco dias. Conforme solicitação específica, seção ausente ou
-  previsão com menos de cinco dias válidos lança `WeatherServiceError`, em vez
-  do resultado parcial previsto abaixo. Inclui probabilidade de precipitação.
+  até cinco dias válidos no período local. As seções são independentes:
+  `current: null` ou `forecast: []` sinalizam indisponibilidade; ambas inválidas
+  lançam `WeatherServiceError`. Dias inválidos, fora do período e todas as
+  ocorrências de datas duplicadas são omitidos, com aviso de previsão parcial.
+  Observações são validadas contra o início da requisição (idade máxima de
+  60 minutos) e o momento da validação (sem horários futuros).
+  Inclui probabilidade de precipitação finita entre 0 e 100.
   `fetchWithTimeout` é compartilhado com `searchCities`, cobre também a leitura
   do JSON e sempre libera o timer no `finally`; timeout produz
   “A requisição demorou demais.” e falha de rede produz “Falha de rede.”.
-  Cancelamento externo, validação de atualidade e filtragem pelo dia local
-  permanecem fora desta entrega.
+  Cancelamento externo permanece fora desta entrega.
 - **Descrição:** Consultar condições atuais e previsão em uma chamada
   Open-Meteo Forecast, validando as seções independentemente.
 - **Critérios de aceite:**
@@ -155,6 +163,8 @@ os AC, NFR e MS da especificação sempre que aplicável.
   obsoletas e respostas após desmontagem são ignoradas.
   `App` usa o hook, inicia em `idle`, oferece seleção das demais cidades e
   mantém `unit` exclusivamente na UI. O mock permanece apenas para testes.
+  Em resposta parcial, a UI preserva a seção válida e oferece retry da
+  consulta combinada para a seção indisponível, sem anúncio de sucesso completo.
 - **Descrição:** Criar o hook que coordena busca, seleção, consulta
   meteorológica, retry e unidade.
 - **Critérios de aceite:**
@@ -428,6 +438,11 @@ ausentes; preservar o grid 2/3/5 da previsão.
 
 ### T-24 — Testar serviço meteorológico combinado
 
+- **Regressões adicionadas:** seções ausentes independentes, dias inválidos,
+  arrays curtos/desordenados, exclusão de todas as duplicatas, período local,
+  mínima igual à máxima e limites da probabilidade. As antigas expectativas
+  de rejeição total para uma única seção inválida foram substituídas pela
+  preservação da seção válida conforme AC-05.4.
 - **Descrição:** Cobrir URL, validação independente e erros do serviço
   meteorológico com `fetch` mockado.
 - **Critérios de aceite:**

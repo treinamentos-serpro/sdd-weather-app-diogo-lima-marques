@@ -70,9 +70,9 @@ export default function useWeather() {
       const data = await getWeather(city);
       if (id !== requestId.current) return;
       setState((previous) => ({ ...previous, status: 'success', data }));
-    } catch (cause) {
+    } catch {
       if (id !== requestId.current) return;
-      const fallback =
+      const message =
         activeOperation.type === 'search'
           ? 'Não foi possível buscar cidades. Tente novamente.'
           : 'Não foi possível carregar os dados meteorológicos. Tente novamente.';
@@ -80,7 +80,7 @@ export default function useWeather() {
         ...previous,
         status: 'error',
         data: null,
-        error: cause instanceof Error && cause.message ? cause.message : fallback,
+        error: message,
       }));
     }
   }, []);

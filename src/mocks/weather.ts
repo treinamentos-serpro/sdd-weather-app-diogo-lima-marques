@@ -1,6 +1,6 @@
 import type { WeatherData } from '../types/weather';
 
-export const mockWeatherData: WeatherData = {
+export const mockWeatherData = {
   city: {
     id: 3448439,
     name: 'São Paulo',
@@ -69,4 +69,4 @@ export const mockWeatherData: WeatherData = {
     },
   ],
   forecastIsIncomplete: false,
-};
+} satisfies WeatherData;

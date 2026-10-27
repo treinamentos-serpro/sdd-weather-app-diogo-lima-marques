@@ -104,14 +104,22 @@ interface ForecastDay {
 
 interface WeatherData {
   city: City; // Localidade à qual os dados pertencem.
-  timezone: string; // Fuso IANA validado usado para as datas.
-  current: CurrentWeather; // Condições atuais validadas.
+  timezone: string | null; // Fuso IANA validado, ou null quando indisponível.
+  current: CurrentWeather | null; // null sinaliza clima atual indisponível.
   forecast: ForecastDay[]; // Dias válidos, ordenados e dentro do período.
   forecastIsIncomplete: boolean; // Indica ausência de um ou mais dias válidos.
 }
 ```
 
-`WeatherData` agrega o resultado quando clima atual e previsão estão disponíveis. Na UI, clima atual e previsão devem ter estados independentes, não ser condicionados à existência de um objeto agregado completo. Campos opcionais de medições auxiliares podem estar ausentes na resposta; não devem ser inventados. Temperaturas permanecem em Celsius no modelo e são convertidas para a unidade selecionada somente na apresentação.
+`WeatherData` agrega as seções validadas independentemente: `current: null`
+indica clima atual indisponível e `forecast: []` indica previsão indisponível.
+O serviço só rejeita a resposta por indisponibilidade dos dados quando nenhuma
+seção é válida; erros de transporte/API também são rejeitados. A UI mantém
+a seção válida, apresenta o erro da outra e oferece retry da consulta combinada.
+`forecastIsIncomplete` é verdadeiro quando há menos de cinco dias válidos,
+sem preencher lacunas. Campos opcionais de medições auxiliares podem estar
+ausentes; não devem ser inventados. Temperaturas permanecem em Celsius no
+modelo e são convertidas somente na apresentação.
 
 Os DTOs externos devem permanecer separados dos modelos de domínio. O geocoding retorna lista de localidades com nome e coordenadas, além de região/país/código quando fornecidos. A resposta meteorológica usa `current.time`, `current.temperature_2m`, `current.weather_code`, `current.relative_humidity_2m`, `current.wind_speed_10m`, `current.pressure_msl`, `current.precipitation`, `daily.time`, `daily.weather_code`, `daily.temperature_2m_min`, `daily.temperature_2m_max`, `daily.precipitation_sum` e `timezone`. Campos auxiliares podem estar ausentes e só são convertidos para o modelo de domínio quando numéricos e finitos.
 
@@ -258,8 +266,11 @@ falha depois do geocoding, só repete o forecast. Novas operações limpam os
 dados antigos e invalidam respostas pendentes, inclusive após desmontagem.
 Entrada vazia retorna a `idle` com solicitação de nome e sem chamada à rede.
 A unidade permanece no `App`, inicia em Celsius e não dispara requisições.
-O mock é usado somente nos testes. O contrato agregado desta entrega substitui
-temporariamente a proposta de estados independentes abaixo.
+O mock é usado somente nos testes. O status agregado controla a requisição;
+em `success`, `current: null` e `forecast: []` representam indisponibilidade
+independente das seções. O anúncio não afirma sucesso completo em resposta
+parcial. O esquema abaixo permanece uma alternativa de orquestração futura;
+não é necessário adotá-lo para preservar as seções válidas.
 
 O estado da aplicação vive localmente na página, centralizado em `useWeatherApp`; componentes de apresentação não duplicam estado meteorológico e recebem valores/ações por props. Não instalar biblioteca global de estado nem persistir em storage. Busca, clima atual e previsão têm estados assíncronos separados para que um resultado ou erro não bloqueie as outras operações.
 

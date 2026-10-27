@@ -33,8 +33,8 @@ export interface ForecastDay {
 
 export interface WeatherData {
   city: City;
-  timezone: string;
-  current: CurrentWeather;
+  timezone: string | null;
+  current: CurrentWeather | null;
   forecast: ForecastDay[];
   forecastIsIncomplete: boolean;
 }

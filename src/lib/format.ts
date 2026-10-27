@@ -1,13 +1,10 @@
 import type { Unit } from '../types/weather';
+import { parseForecastDate } from './date';
 import { convertTemperature } from './temperature';
 
 export function formatForecastDay(date: string, locale: string): string {
-  const parsed = new Date(`${date}T12:00:00Z`);
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !Number.isFinite(parsed.getTime()) ||
-    parsed.toISOString().slice(0, 10) !== date
-  ) {
+  const parsed = parseForecastDate(date);
+  if (parsed === null) {
     throw new RangeError(`Data de previsão inválida: ${date}`);
   }
 

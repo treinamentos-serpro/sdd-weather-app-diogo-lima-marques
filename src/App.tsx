@@ -13,6 +13,10 @@ export default function App() {
   const { status, data, cities, error, search, selectCity, retry } = useWeather();
   const [unit, setUnit] = useState<Unit>('celsius');
   const mainRef = useRef<HTMLElement>(null);
+  const retryWeather = () => {
+    void retry();
+    mainRef.current?.focus();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-night-900 via-night-800 to-night-900 [overflow-wrap:anywhere]">
@@ -63,10 +67,7 @@ export default function App() {
               message={
                 error ?? 'Não foi possível carregar os dados meteorológicos. Tente novamente.'
               }
-              onRetry={() => {
-                void retry();
-                mainRef.current?.focus();
-              }}
+              onRetry={retryWeather}
             />
           )}
           {cities.length > 1 && (
@@ -89,17 +90,38 @@ export default function App() {
           )}
           {status === 'success' && data && (
             <>
-              <CurrentWeather city={data.city} current={data.current} unit={unit} />
-              <ForecastList
-                forecast={data.forecast}
-                unit={unit}
-                isIncomplete={data.forecastIsIncomplete}
-              />
+              {data.current ? (
+                <CurrentWeather city={data.city} current={data.current} unit={unit} />
+              ) : (
+                <section aria-label={`Clima atual em ${data.city.name}`}>
+                  <h2 className="mb-4 text-2xl font-semibold">Clima atual em {data.city.name}</h2>
+                  <ErrorState
+                    message="Clima atual indisponível para esta cidade."
+                    onRetry={retryWeather}
+                  />
+                </section>
+              )}
+              {data.forecast.length > 0 ? (
+                <ForecastList
+                  forecast={data.forecast}
+                  unit={unit}
+                  isIncomplete={data.forecastIsIncomplete}
+                />
+              ) : (
+                <ErrorState
+                  message="Previsão indisponível para esta cidade."
+                  onRetry={retryWeather}
+                />
+              )}
             </>
           )}
           <p role="status" aria-label="Resultado da busca" aria-atomic="true" className="sr-only">
             {status === 'empty' && 'Nenhuma cidade encontrada. Verifique o nome e tente novamente.'}
-            {status === 'success' && data && `Clima e previsão de ${data.city.name} disponíveis.`}
+            {status === 'success' &&
+              data &&
+              (data.current && data.forecast.length === 5 && !data.forecastIsIncomplete
+                ? `Clima e previsão de ${data.city.name} disponíveis.`
+                : `Dados meteorológicos de ${data.city.name} parcialmente disponíveis.`)}
           </p>
         </main>
 

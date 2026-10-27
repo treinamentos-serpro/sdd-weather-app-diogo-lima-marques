@@ -35,6 +35,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  vi.useRealTimers();
 });
 
 describe('useWeather', () => {
@@ -130,11 +131,19 @@ describe('useWeather', () => {
   });
 
   it('erro de busca não dispara retry automático; retry repete a busca', async () => {
+    vi.useFakeTimers();
     vi.mocked(searchCities).mockRejectedValueOnce(new Error('Falha de rede.'));
     const { result } = renderHook(useWeather);
     await act(() => result.current.search('São Paulo'));
 
-    expect(result.current).toMatchObject({ status: 'error', error: 'Falha de rede.', data: null });
+    expect(result.current).toMatchObject({
+      status: 'error',
+      error: 'Não foi possível buscar cidades. Tente novamente.',
+      data: null,
+    });
+    expect(searchCities).toHaveBeenCalledTimes(1);
+    expect(getWeather).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
     expect(searchCities).toHaveBeenCalledTimes(1);
     expect(getWeather).not.toHaveBeenCalled();
     await act(() => result.current.retry());
@@ -151,7 +160,7 @@ describe('useWeather', () => {
     expect(result.current).toMatchObject({
       status: 'error',
       data: null,
-      error: 'A requisição demorou demais.',
+      error: 'Não foi possível carregar os dados meteorológicos. Tente novamente.',
     });
     await act(() => result.current.retry());
     expect(searchCities).toHaveBeenCalledTimes(1);
@@ -160,9 +169,13 @@ describe('useWeather', () => {
   });
 
   it('retry após falha do carregamento automático não repete o geocoding', async () => {
+    vi.useFakeTimers();
     vi.mocked(getWeather).mockRejectedValueOnce(new Error('Falha de rede.'));
     const { result } = renderHook(useWeather);
     await act(() => result.current.search('São Paulo'));
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(searchCities).toHaveBeenCalledTimes(1);
+    expect(getWeather).toHaveBeenCalledTimes(1);
     await act(() => result.current.retry());
     expect(searchCities).toHaveBeenCalledTimes(1);
     expect(getWeather).toHaveBeenCalledTimes(2);

@@ -189,8 +189,21 @@ seleções e retries, sem disparar rede. Os mocks são usados apenas nos testes.
 O [serviço](src/services/weatherService.ts) usa timeout de 10 segundos,
 incluindo a leitura do JSON. Erros de timeout e rede são expostos como
 `WeatherServiceError`, com “A requisição demorou demais.” e “Falha de rede.”.
-Respostas meteorológicas incompletas são rejeitadas; esta entrega usa status
-agregado e exige cinco dias válidos, sem apresentação parcial.
+Na UI, as falhas usam as mensagens pt-BR da operação (busca ou consulta
+meteorológica), sem confundi-las com uma busca sem resultados.
+As seções meteorológicas são validadas independentemente: `current: null`
+indica clima atual indisponível e `forecast: []` indica previsão indisponível.
+Uma seção válida permanece visível se a outra falhar, com retry manual da
+consulta combinada. Somente uma resposta sem nenhuma seção válida é rejeitada
+como incompleta; erros HTTP/API, rede, JSON e timeout continuam sendo falhas.
+
+O serviço rejeita observações com mais de 60 minutos de idade no início da
+solicitação ou posteriores ao instante de validação. A previsão usa o dia
+local do fuso IANA retornado, mantém apenas datas de hoje até hoje + 4 e
+omite todas as ocorrências de datas duplicadas e dias com campos obrigatórios
+inválidos. Menos de cinco dias válidos gera aviso de previsão incompleta,
+sem preencher lacunas nem inventar medições. Os testes com respostas fixas
+também fixam o relógio, para não depender da data de execução.
 
 Os testes de layout em navegador estão em
 [app-layout.spec.ts](tests/e2e/app-layout.spec.ts). Execute
