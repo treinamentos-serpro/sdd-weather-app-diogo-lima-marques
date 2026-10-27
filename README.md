@@ -102,6 +102,135 @@ Decisões-chave:
 
 ---
 
+## Dados mock para desenvolver a UI
+
+Os contratos de domínio estão em [src/types/weather.ts](src/types/weather.ts).
+Para desenvolver componentes sem consultar a API, importe o objeto tipado:
+
+```ts
+import { mockWeatherData } from './mocks/weather';
+```
+
+O caminho acima é relativo a um arquivo diretamente em `src/`. O
+[mock](src/mocks/weather.ts) contém São Paulo, condições atuais e cinco dias
+consecutivos de previsão, com temperaturas em Celsius e descrições pt-BR.
+Os dados são fictícios e as datas são fixas (27 a 31/10/2026), no fuso
+`America/Sao_Paulo`, para manter o exemplo determinístico. Não representam
+uma consulta atual e não devem passar pela validação de atualidade da API.
+
+## Busca de cidades
+
+O componente [SearchBar](src/components/SearchBar.tsx) recebe `onSearch(city: string)`
+e `disabled` (opcional, `false` por padrão). O formulário tem `role="search"` e
+label visível; permite enviar por Enter ou pelo botão Buscar. Remove espaços
+externos antes de chamar `onSearch` e, para entrada vazia, mostra
+“Informe o nome de uma cidade.” sem disparar a busca. Quando desabilitado,
+bloqueia o campo e o envio. Não faz chamadas à API.
+
+## Controle de unidade
+
+O componente [UnitToggle](src/components/UnitToggle.tsx) recebe `unit`
+(`'celsius' | 'fahrenheit'`) e `onChange(unit)`. É controlado pelo componente
+pai, que deve iniciar a unidade em Celsius e atualizar a prop após a escolha.
+Os botões °C/°F usam `aria-pressed` dentro de um grupo com nome acessível.
+Navegue com Tab/Shift+Tab e ative com Enter ou Espaço. O controle não converte
+temperaturas nem faz chamadas à API.
+
+## Clima atual
+
+O hero [CurrentWeather](src/components/CurrentWeather.tsx) recebe `city`, `current`
+e `unit`. Mostra temperatura, condição pt-BR e métricas com unidades explícitas;
+medições ausentes aparecem como “Indisponível”, sem inventar valores. Código
+WMO ausente ou desconhecido mostra “Condição indisponível” sem ícone.
+
+Os ícones decorativos e descrições WMO ficam em
+[weatherCodes](src/lib/weatherCodes.ts). A conversão pura em
+[temperature](src/lib/temperature.ts) preserva Celsius como valor canônico;
+[format](src/lib/format.ts) aplica a unidade e uma casa decimal em pt-BR
+somente na apresentação. O componente não consulta a API nem valida a atualidade
+da observação; essa validação pertence ao serviço.
+
+## Previsão e estados reutilizáveis
+
+[ForecastList](src/components/ForecastList.tsx) recebe `forecast`, `unit` e
+`isIncomplete` opcional. Ordena os dias recebidos sem modificar a entrada,
+mostra aviso de previsão parcial e usa grid de 2/3/5 colunas. Datas únicas e
+dados válidos são responsabilidade do serviço. Cada
+[ForecastCard](src/components/ForecastCard.tsx) recebe `day` e `unit` e mostra
+dia/data local, condição, ícone, máxima/mínima e probabilidade de chuva.
+`precipitationProbabilityPercent` é opcional, de 0 a 100; ausente ou inválido
+aparece como “Indisponível”. Não é calculado a partir de `precipitationMm`.
+O mock contém porcentagens fictícias para desenvolver a UI.
+
+Estados disponíveis em [src/components/states/](src/components/states/):
+- `LoadingState`: `message` opcional e `role="status"`.
+- `ErrorState`: `message` e `onRetry`; botão “Tentar novamente”, sem retry automático.
+- `EmptyState`: `title` e `hint`.
+
+## Executando a UI integrada
+
+Execute `pnpm dev` e abra a URL indicada pelo Vite. A tela
+[App](src/App.tsx) inicia em `idle`, sem chamadas de rede. Busque uma cidade
+para consultar Open-Meteo: a primeira localidade encontrada é carregada
+automaticamente; quando houver outras opções, selecione a desejada.
+O bootstrap está em [main](src/main.tsx) e
+o Tailwind global em [styles/index.css](src/styles/index.css).
+
+O hook [useWeather](src/hooks/useWeather.ts) expõe `status`, `data`, `cities`,
+`error`, `query`, `search(name)`, `selectCity(city)` e `retry()`.
+Estados disponíveis: `idle`, `loading`, `empty`, `error` e `success`.
+Busca sem resultado não consulta forecast; entrada vazia não consulta a rede.
+“Tentar novamente” repete a última operação: busca se ela falhou, ou consulta
+meteorológica se já houve seleção. Não há retry automático.
+Loading desabilita a busca e remove dados antigos; respostas obsoletas são
+ignoradas. A unidade é estado da UI e permanece selecionada entre buscas,
+seleções e retries, sem disparar rede. Os mocks são usados apenas nos testes.
+
+O [serviço](src/services/weatherService.ts) usa timeout de 10 segundos,
+incluindo a leitura do JSON. Erros de timeout e rede são expostos como
+`WeatherServiceError`, com “A requisição demorou demais.” e “Falha de rede.”.
+Na UI, as falhas usam as mensagens pt-BR da operação (busca ou consulta
+meteorológica), sem confundi-las com uma busca sem resultados.
+As seções meteorológicas são validadas independentemente: `current: null`
+indica clima atual indisponível e `forecast: []` indica previsão indisponível.
+Uma seção válida permanece visível se a outra falhar, com retry manual da
+consulta combinada. Somente uma resposta sem nenhuma seção válida é rejeitada
+como incompleta; erros HTTP/API, rede, JSON e timeout continuam sendo falhas.
+
+O serviço rejeita observações com mais de 60 minutos de idade no início da
+solicitação ou posteriores ao instante de validação. A previsão usa o dia
+local do fuso IANA retornado, mantém apenas datas de hoje até hoje + 4 e
+omite todas as ocorrências de datas duplicadas e dias com campos obrigatórios
+inválidos. Menos de cinco dias válidos gera aviso de previsão incompleta,
+sem preencher lacunas nem inventar medições. Os testes com respostas fixas
+também fixam o relógio, para não depender da data de execução.
+
+Os testes de layout em navegador estão em
+[app-layout.spec.ts](tests/e2e/app-layout.spec.ts). Execute
+`pnpm exec playwright test tests/e2e/app-layout.spec.ts --project=chromium`
+para verificar 320/768/1440 px, o grid 2/3/5, ausência de rolagem horizontal
+e troca de unidade com APIs interceptadas, sem rede real. O Chromium e suas dependências de sistema
+devem estar instalados (`pnpm exec playwright install --with-deps chromium`).
+
+## Acessibilidade e responsividade
+
+- Busca com label visível, descrição do erro e foco no campo inválido.
+- Resultados de busca anunciados por uma região `status` persistente, sem
+  tirar o foco da busca. Loading não fica dentro de uma região `aria-busy`
+  que possa adiar o anúncio. Retry devolve foco ao conteúdo após remover o botão.
+- Skip link no início da ordem de Tab, com foco visível também no destino.
+- Borda do input com contraste mínimo de 3:1; textos com mínimo de 4,5:1
+  nos fundos do tema. Ícones são decorativos e têm descrição textual adjacente.
+- Reflow de 320 a 1440 px, incluindo texto a 200%, nomes longos e métricas
+  indisponíveis. As métricas usam uma coluna em telas muito estreitas; o grid
+  da previsão mantém 2/3/5 colunas, com quebra de palavras e cards de altura uniforme.
+
+Os testes em [accessibility.spec.ts](tests/e2e/accessibility.spec.ts) verificam
+teclado, foco, regiões de anúncio, contraste calculado e reflow. Execute
+`pnpm exec playwright test --project=chromium --workers=1`. Esses testes não
+substituem validação manual com leitores de tela nem certificam conformidade
+WCAG completa; essa validação deve acompanhar a integração dos estados reais.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

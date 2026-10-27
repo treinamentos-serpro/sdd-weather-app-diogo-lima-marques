@@ -1,44 +1,29 @@
-/**
- * Funções puras de formatação de datas para a previsão.
- */
+import type { Unit } from '../types/weather';
+import { parseForecastDate } from './date';
+import { convertTemperature } from './temperature';
 
-const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const MONTHS = [
-  'Jan',
-  'Fev',
-  'Mar',
-  'Abr',
-  'Mai',
-  'Jun',
-  'Jul',
-  'Ago',
-  'Set',
-  'Out',
-  'Nov',
-  'Dez',
-];
+export function formatForecastDay(date: string, locale: string): string {
+  const parsed = parseForecastDate(date);
+  if (parsed === null) {
+    throw new RangeError(`Data de previsão inválida: ${date}`);
+  }
 
-/** Faz parse de uma data ISO (YYYY-MM-DD) como data local, sem fuso. */
-function parseLocalDate(iso: string): Date {
-  const [year, month, day] = iso.split('-').map(Number);
-  return new Date(year, (month ?? 1) - 1, day ?? 1);
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(parsed);
 }
 
-/**
- * Rótulo do dia relativo a "hoje":
- * - índice 0 → "Hoje"
- * - índice 1 → "Amanhã"
- * - demais → dia da semana abreviado
- */
-export function getDayLabel(iso: string, index: number): string {
-  if (index === 0) return 'Hoje';
-  if (index === 1) return 'Amanhã';
-  const date = parseLocalDate(iso);
-  return WEEKDAYS[date.getDay()];
-}
+export function formatTemperature(celsius: number, unit: Unit, locale: string): string {
+  if (!Number.isFinite(celsius)) return 'Indisponível';
 
-/** Formata a data como "12 Jun". */
-export function getShortDate(iso: string): string {
-  const date = parseLocalDate(iso);
-  return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  const temperature = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(convertTemperature(celsius, unit));
+
+  return `${temperature} ${unit === 'fahrenheit' ? '°F' : '°C'}`;
 }

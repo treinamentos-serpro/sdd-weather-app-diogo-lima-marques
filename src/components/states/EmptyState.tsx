@@ -1,17 +1,22 @@
+import { useId } from 'react';
+
 interface EmptyStateProps {
   title: string;
-  hint?: string;
+  hint: string;
 }
 
-/** Estado vazio (nenhuma busca feita ou nenhum resultado). */
 export default function EmptyState({ title, hint }: EmptyStateProps) {
+  const headingId = useId();
+
   return (
-    <div className="flex flex-col items-center gap-2 py-16 text-center">
-      <span aria-hidden="true" className="text-4xl">
-        🌍
-      </span>
-      <p className="text-white/80">{title}</p>
-      {hint && <p className="text-sm text-white/50">{hint}</p>}
-    </div>
+    <section
+      aria-labelledby={headingId}
+      className="rounded-2xl border border-white/10 bg-white/5 p-6 font-sans text-white shadow-glass backdrop-blur-md"
+    >
+      <h2 id={headingId} className="text-xl font-semibold">
+        {title}
+      </h2>
+      <p className="mt-2 text-white/70">{hint}</p>
+    </section>
   );
 }
