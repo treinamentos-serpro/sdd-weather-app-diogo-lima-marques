@@ -102,6 +102,71 @@ Decisões-chave:
 
 ---
 
+## Dados mock para desenvolver a UI
+
+Os contratos de domínio estão em [src/types/weather.ts](src/types/weather.ts).
+Para desenvolver componentes sem consultar a API, importe o objeto tipado:
+
+```ts
+import { mockWeatherData } from './mocks/weather';
+```
+
+O caminho acima é relativo a um arquivo diretamente em `src/`. O
+[mock](src/mocks/weather.ts) contém São Paulo, condições atuais e cinco dias
+consecutivos de previsão, com temperaturas em Celsius e descrições pt-BR.
+Os dados são fictícios e as datas são fixas (27 a 31/10/2026), no fuso
+`America/Sao_Paulo`, para manter o exemplo determinístico. Não representam
+uma consulta atual e não devem passar pela validação de atualidade da API.
+
+## Busca de cidades
+
+O componente [SearchBar](src/components/SearchBar.tsx) recebe `onSearch(city: string)`
+e `disabled` (opcional, `false` por padrão). O formulário tem `role="search"` e
+label visível; permite enviar por Enter ou pelo botão Buscar. Remove espaços
+externos antes de chamar `onSearch` e, para entrada vazia, mostra
+“Informe o nome de uma cidade.” sem disparar a busca. Quando desabilitado,
+bloqueia o campo e o envio. Não faz chamadas à API.
+
+## Controle de unidade
+
+O componente [UnitToggle](src/components/UnitToggle.tsx) recebe `unit`
+(`'celsius' | 'fahrenheit'`) e `onChange(unit)`. É controlado pelo componente
+pai, que deve iniciar a unidade em Celsius e atualizar a prop após a escolha.
+Os botões °C/°F usam `aria-pressed` dentro de um grupo com nome acessível.
+Navegue com Tab/Shift+Tab e ative com Enter ou Espaço. O controle não converte
+temperaturas nem faz chamadas à API.
+
+## Clima atual
+
+O hero [CurrentWeather](src/components/CurrentWeather.tsx) recebe `city`, `current`
+e `unit`. Mostra temperatura, condição pt-BR e métricas com unidades explícitas;
+medições ausentes aparecem como “Indisponível”, sem inventar valores. Código
+WMO ausente ou desconhecido mostra “Condição indisponível” sem ícone.
+
+Os ícones decorativos e descrições WMO ficam em
+[weatherCodes](src/lib/weatherCodes.ts). A conversão pura em
+[temperature](src/lib/temperature.ts) preserva Celsius como valor canônico;
+[format](src/lib/format.ts) aplica a unidade e uma casa decimal em pt-BR
+somente na apresentação. O componente não consulta a API nem valida a atualidade
+da observação; essa validação pertence ao serviço.
+
+## Previsão e estados reutilizáveis
+
+[ForecastList](src/components/ForecastList.tsx) recebe `forecast`, `unit` e
+`isIncomplete` opcional. Ordena os dias recebidos sem modificar a entrada,
+mostra aviso de previsão parcial e usa grid de 2/3/5 colunas. Datas únicas e
+dados válidos são responsabilidade do serviço. Cada
+[ForecastCard](src/components/ForecastCard.tsx) recebe `day` e `unit` e mostra
+dia/data local, condição, ícone, máxima/mínima e probabilidade de chuva.
+`precipitationProbabilityPercent` é opcional, de 0 a 100; ausente ou inválido
+aparece como “Indisponível”. Não é calculado a partir de `precipitationMm`.
+O mock contém porcentagens fictícias para desenvolver a UI.
+
+Estados disponíveis em [src/components/states/](src/components/states/):
+- `LoadingState`: `message` opcional e `role="status"`.
+- `ErrorState`: `message` e `onRetry`; botão “Tentar novamente”, sem retry automático.
+- `EmptyState`: `title` e `hint`.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

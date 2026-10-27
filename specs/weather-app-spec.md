@@ -16,6 +16,11 @@ O objetivo é permitir que a pessoa encontre a cidade correta e consulte as cond
 
 ## Functional Requirements
 
+Complemento para desenvolvimento da UI: cada dia da previsão também pode
+apresentar a probabilidade de chuva em porcentagem. Esse dado é opcional,
+distinto do volume de precipitação em mm; quando ausente, mostrar
+“Indisponível”, sem derivá-lo do volume.
+
 - **FR-01 — Buscar e selecionar cidades:** o sistema deve permitir pesquisar nomes de cidades nas localidades disponíveis globalmente no serviço de geocodificação do Open-Meteo e escolher uma localidade entre os resultados. A cobertura não é garantida para toda cidade existente.
   - **AC-01.1 — Entrada vazia:** **Given** que o campo de busca está vazio ou contém apenas espaços, **When** a pessoa envia a busca, **Then** o sistema não chama o serviço de geocodificação, não exibe mensagem de “cidade não encontrada” e solicita a entrada com “Informe o nome de uma cidade.”
   - **AC-01.2 — Texto da busca:** **Given** que a pessoa informa um nome de cidade com acentos, espaços, hífen ou apóstrofo, **When** a busca é enviada, **Then** o sistema remove apenas espaços externos, preserva os caracteres do nome e envia o texto como dado de busca, sem interpretá-lo como marcação ou código.

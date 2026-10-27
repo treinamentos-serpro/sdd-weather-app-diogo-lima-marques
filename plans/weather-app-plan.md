@@ -99,6 +99,7 @@ interface ForecastDay {
   condition: string; // Descrição pt-BR do código WMO reconhecido.
   weatherCode: number; // Código WMO reconhecido, obrigatório para dia válido.
   precipitationMm?: number; // Precipitação total diária em milímetros.
+  precipitationProbabilityPercent?: number; // Probabilidade de chuva de 0 a 100, quando fornecida.
 }
 
 interface WeatherData {
@@ -117,6 +118,16 @@ Os DTOs externos devem permanecer separados dos modelos de domínio. O geocoding
 Códigos WMO só são considerados reconhecidos quando há descrição pt-BR mapeada; temperatura atual válida com código ausente ou desconhecido continua exibível com “Condição indisponível” (AC-02.3). Por isso, `CurrentWeather.weatherCode` pode estar ausente; `ForecastDay` exige código reconhecido. As propriedades quantitativas de umidade, vento, pressão e precipitação são opcionais, pois não são obrigatórias nos critérios atuais da spec. Conversão para Fahrenheit ocorre na apresentação para evitar perda de precisão e erros ao alternar unidades (AC-04.2 a AC-04.4).
 
 ## Data Flow
+
+Complemento de UI: `ForecastList` e `ForecastCard` apresentam os dias já
+validados pelo serviço, com datas locais formatadas sem deslocamento de fuso,
+ícones de `lib/weatherCodes` e temperaturas de `lib/format`. A probabilidade
+opcional vem de `daily.precipitation_probability_max` e é mapeada para
+`precipitationProbabilityPercent` apenas quando finita e entre 0 e 100;
+adicionar esse campo à consulta `daily` na implementação do serviço.
+Não converter `precipitation_sum` em probabilidade. O mock inclui porcentagens
+fictícias. `LoadingState`, `ErrorState` e `EmptyState` são componentes
+de apresentação reutilizáveis; retry ocorre apenas por ação explícita.
 
 ```mermaid
 flowchart TD
