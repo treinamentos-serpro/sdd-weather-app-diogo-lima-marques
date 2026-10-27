@@ -167,6 +167,50 @@ Estados disponíveis em [src/components/states/](src/components/states/):
 - `ErrorState`: `message` e `onRetry`; botão “Tentar novamente”, sem retry automático.
 - `EmptyState`: `title` e `hint`.
 
+## Executando a UI com mock
+
+Execute `pnpm dev` e abra a URL indicada pelo Vite. A tela
+[App](src/App.tsx) inicia em `success`, com header, busca, seletor de unidade,
+hero, cinco cards e atribuição. O bootstrap está em [main](src/main.tsx) e
+o Tailwind global em [styles/index.css](src/styles/index.css).
+
+Para inspecionar outros estados, altere temporariamente a montagem em
+`main.tsx`, por exemplo: `<App initialStatus="loading" />`. Valores disponíveis:
+`idle`, `loading`, `empty`, `error` e `success`. No erro, “Tentar novamente”
+reapresenta o mock. Loading desabilita a busca, sem usar temporizadores.
+
+A busca é uma simulação local: `São Paulo` (sem distinguir maiúsculas ou
+acentos) mostra o mock; outros nomes mostram vazio. O aviso na tela identifica
+os dados fictícios e suas datas fixas. Não há rede meteorológica, persistência
+ou hook de API nesta etapa. A unidade é estado da UI, inicia em Celsius e
+permanece selecionada ao alternar entre vazio e sucesso, sem alterar o mock.
+
+Os testes de layout em navegador estão em
+[app-layout.spec.ts](tests/e2e/app-layout.spec.ts). Execute
+`pnpm exec playwright test tests/e2e/app-layout.spec.ts --project=chromium`
+para verificar 320/768/1440 px, o grid 2/3/5, ausência de rolagem horizontal
+e troca de unidade com busca local. O Chromium e suas dependências de sistema
+devem estar instalados (`pnpm exec playwright install --with-deps chromium`).
+
+## Acessibilidade e responsividade
+
+- Busca com label visível, descrição do erro e foco no campo inválido.
+- Resultados de busca anunciados por uma região `status` persistente, sem
+  tirar o foco da busca. Loading não fica dentro de uma região `aria-busy`
+  que possa adiar o anúncio. Retry devolve foco ao conteúdo após remover o botão.
+- Skip link no início da ordem de Tab, com foco visível também no destino.
+- Borda do input com contraste mínimo de 3:1; textos com mínimo de 4,5:1
+  nos fundos do tema. Ícones são decorativos e têm descrição textual adjacente.
+- Reflow de 320 a 1440 px, incluindo texto a 200%, nomes longos e métricas
+  indisponíveis. As métricas usam uma coluna em telas muito estreitas; o grid
+  da previsão mantém 2/3/5 colunas, com quebra de palavras e cards de altura uniforme.
+
+Os testes em [accessibility.spec.ts](tests/e2e/accessibility.spec.ts) verificam
+teclado, foco, regiões de anúncio, contraste calculado e reflow. Execute
+`pnpm exec playwright test --project=chromium --workers=1`. Esses testes não
+substituem validação manual com leitores de tela nem certificam conformidade
+WCAG completa; essa validação deve acompanhar a integração dos estados reais.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

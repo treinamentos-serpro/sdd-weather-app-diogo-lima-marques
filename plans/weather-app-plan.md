@@ -247,6 +247,17 @@ Uma falha de rede, HTTP ou timeout na única chamada afeta ambos os conjuntos de
 
 ## State Management
 
+Etapa temporária de montagem da UI: `App` usa apenas `mockWeatherData` e um
+estado local `status` (`idle/loading/empty/error/success`), iniciado em
+`success`. A prop opcional `initialStatus` permite visualizar e testar cada
+estado sem API nem temporizadores; pode ser alterada na montagem em `main.tsx`.
+A busca local reconhece somente o nome da cidade do mock, sem distinguir
+maiúsculas ou acentos; outros nomes exibem o estado vazio. Retry reapresenta
+o mock. A unidade começa em Celsius e permanece independente do status.
+Essa simulação não substitui a futura orquestração com estados independentes
+descrita abaixo. Bootstrap React e Tailwind global são incluídos nesta etapa
+para permitir validar a tela no Vite e o build de produção.
+
 O estado da aplicação vive localmente na página, centralizado em `useWeatherApp`; componentes de apresentação não duplicam estado meteorológico e recebem valores/ações por props. Não instalar biblioteca global de estado nem persistir em storage. Busca, clima atual e previsão têm estados assíncronos separados para que um resultado ou erro não bloqueie as outras operações.
 
 ```ts

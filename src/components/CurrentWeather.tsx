@@ -24,7 +24,7 @@ export default function CurrentWeather({ city, current, unit }: CurrentWeatherPr
   return (
     <section
       aria-labelledby={headingId}
-      className="rounded-2xl border border-white/10 bg-white/5 p-6 font-sans text-white shadow-glass backdrop-blur-md sm:p-8"
+      className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-6 font-sans text-white shadow-glass backdrop-blur-md [overflow-wrap:anywhere] sm:p-8"
     >
       <h2 id={headingId} className="text-2xl font-semibold">
         Clima atual em {city.name}
@@ -46,14 +46,14 @@ export default function CurrentWeather({ city, current, unit }: CurrentWeatherPr
                 {weather.icon}
               </span>
             )}
-            <p className="text-5xl font-semibold tracking-tight sm:text-7xl">
+            <p className="min-w-0 text-5xl font-semibold tracking-tight sm:text-7xl">
               {formatTemperature(current.temperatureCelsius, unit, 'pt-BR')}
             </p>
           </div>
           <p className="mt-3 text-lg">{weather ? current.condition : 'Condição indisponível'}</p>
-          <dl className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <dl className="mt-8 grid grid-cols-1 gap-4 min-[400px]:grid-cols-2 lg:grid-cols-4">
             {metrics.map(({ label, value, suffix }) => (
-              <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div key={label} className="min-w-0 rounded-xl border border-white/10 bg-white/5 p-3">
                 <dt className="text-sm text-white/70">{label}</dt>
                 <dd className="mt-1 text-lg font-medium">
                   {value !== undefined && Number.isFinite(value)

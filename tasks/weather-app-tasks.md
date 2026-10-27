@@ -244,6 +244,15 @@ Complemento aprovado para esta entrega:
 
 ### T-14 — Compor a página Weather App
 
+Entrega incremental de UI com mock (antes do hook/API): montar `App` com
+marca, `SearchBar`, `UnitToggle`, clima atual, previsão e atribuição. Usar
+`status` temporário para idle/loading/empty/error/success e `unit` independente,
+convertendo temperaturas somente na renderização. A busca apenas reconhece
+a cidade do mock; outros nomes mostram vazio. Permitir pré-visualizar os
+estados via `initialStatus`, sem simular respostas reais. Incluir T-15/T-16
+(CSS Tailwind global e bootstrap) para desbloquear dev/build. Verificar os
+cinco estados, unidade preservada, teclado e ausência de overflow em 320/1440 px.
+
 - **Descrição:** Integrar o hook e os componentes em uma página React.
 - **Critérios de aceite:**
   - A página conecta formulário, seleção, estados de clima e previsão,
@@ -257,6 +266,13 @@ Complemento aprovado para esta entrega:
 - **Tipo:** UI
 
 ### T-15 — Aplicar tema e layout responsivo
+
+Revisão incremental de NFR-02/NFR-03: reforçar contraste da borda do input
+(mínimo 3:1), foco no campo inválido, anúncio persistente dos resultados sem
+mover foco na busca, destino do skip link com foco visível e foco preservado
+após retry. Não manter o status de carregamento dentro de `aria-busy=true`.
+Validar reflow em 320–1440 px, texto ampliado a 200%, nomes longos e métricas
+ausentes; preservar o grid 2/3/5 da previsão.
 
 - **Descrição:** Criar os estilos globais e a apresentação dark glassmorphism
   responsiva.

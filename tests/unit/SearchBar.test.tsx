@@ -27,6 +27,7 @@ describe('SearchBar', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Informe o nome de uma cidade.');
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveAccessibleDescription('Informe o nome de uma cidade.');
+    expect(input).toHaveFocus();
   });
 
   it.each([

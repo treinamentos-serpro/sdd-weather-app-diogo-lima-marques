@@ -17,12 +17,12 @@ export default function ForecastCard({ day, unit }: ForecastCardProps) {
     probability <= 100;
 
   return (
-    <article className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-4 font-sans text-white shadow-glass backdrop-blur-md">
+    <article className="h-full min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 font-sans text-white shadow-glass backdrop-blur-md [overflow-wrap:anywhere] sm:p-4">
       <h3 className="font-semibold">
         <time dateTime={day.date}>{formatForecastDay(day.date, 'pt-BR')}</time>
       </h3>
       {weather && (
-        <span aria-hidden="true" className="mt-4 block text-4xl">
+        <span aria-hidden="true" className="mt-4 block text-2xl sm:text-3xl xl:text-4xl">
           {weather.icon}
         </span>
       )}
