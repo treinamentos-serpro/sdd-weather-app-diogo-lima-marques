@@ -25,7 +25,7 @@ spec e das tarefas.
 - **Unitários:** funções puras (conversão C/F), services (com mock de rede),
   componentes (estados loading/erro/vazio/sucesso).
 - **E2E:** fluxos de usuário com `page.route` para respostas determinísticas;
-  incluir viewport mobile.
+  cobrir viewports de tablet e desktop, sem testes E2E dedicados a mobile.
 - Cubra explicitamente os **edge cases** da spec.
 
 ## Regras

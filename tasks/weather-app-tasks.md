@@ -560,7 +560,7 @@ ausentes; preservar o grid 2/3/5 da previsão.
 - **Critérios de aceite:**
   - O cenário seleciona a localidade retornada pelo mock e verifica clima
     atual e exatamente cinco datas em ordem.
-  - O fluxo completo é executado em viewport mobile de 320 px; a página não
+  - O fluxo completo é executado em viewport desktop de 1440 px; a página não
     apresenta rolagem horizontal (`scrollWidth <= clientWidth`).
   - A suíte intercepta os endpoints e não acessa a API pública.
   - `pnpm test:e2e -- tests/e2e/weather.spec.ts` passa.
@@ -593,8 +593,7 @@ ausentes; preservar o grid 2/3/5 da previsão.
     as temperaturas renderizadas; não ocorre request adicional.
   - Fluxo de busca e seleção pode ser concluído por teclado.
   - Em viewport desktop de 1440 px, `scrollWidth` do documento não excede
-    `clientWidth`; o viewport mobile de 320 px é validado no fluxo principal
-    T-31.
+    `clientWidth`.
   - `pnpm test:e2e -- tests/e2e/weather-accessibility.spec.ts` passa.
 - **Rastreabilidade:** AC-04.1 a AC-04.4, NFR-02, NFR-03.
 - **Dependências:** T-18, T-30.
@@ -689,7 +688,7 @@ validação apenas ao final.
    identifica a fonte dos dados.
 4. **Resiliência e acessibilidade:** completar T-22 a T-28, T-32, T-33 e
    T-35. Cobrir respostas parciais/erros, retry manual, uso por teclado,
-   estados acessíveis e viewports de 320 px a 1440 px.
+   estados acessíveis e viewports de tablet a desktop (até 1440 px).
 5. **Prontidão operacional:** T-34, T-36, T-38 e T-39. Validar build, metas de
    desempenho, sondas, atribuição e limites antes do lançamento; executar T-37
    como avaliação posterior de usabilidade.

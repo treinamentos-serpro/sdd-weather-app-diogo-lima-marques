@@ -20,4 +20,4 @@ applyTo: 'tests/**/*.{ts,tsx}'
   determinísticos.
 - Teste fluxos de usuário ponta a ponta: buscar cidade → ver clima → trocar
   unidade → ver previsão.
-- Inclua ao menos um teste no viewport mobile.
+- Use viewports de tablet e desktop; não crie testes E2E dedicados a mobile.

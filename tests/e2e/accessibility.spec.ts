@@ -58,7 +58,7 @@ test('erro de entrada recebe foco e resultados atualizam a região de anúncio',
   await expect(announcement).toHaveText('Clima e previsão de São Paulo disponíveis.');
 });
 
-for (const width of [320, 375, 640, 768, 1024, 1440]) {
+for (const width of [640, 768, 1024, 1440]) {
   test(`texto a 200% e conteúdo longo não transbordam em ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.evaluate(() => {

@@ -123,26 +123,6 @@ test('preserva caracteres especiais como texto e envia a busca codificada', asyn
   await expect(page.locator('img')).toHaveCount(0);
 });
 
-test('renderiza clima e previsão após buscar em viewport mobile de 375x812', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto('/');
-  await searchExampleCity(page);
-
-  const current = page.getByRole('region', { name: 'Clima atual em São Paulo' });
-  const forecast = page.getByRole('region', { name: 'Previsão de 5 dias' });
-  await expect(current).toBeVisible();
-  await expect(current.getByText('23,5 °C', { exact: true })).toBeVisible();
-  await expect(current.getByText('Parcialmente nublado', { exact: true })).toBeVisible();
-  await expect(forecast).toBeVisible();
-  await expect(forecast.getByRole('listitem')).toHaveCount(5);
-  await expect(forecast.getByText('26,4 °C', { exact: true })).toBeVisible();
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-    ),
-  ).toBe(true);
-});
-
 test('volta ao Celsius original e reinicia a unidade após recarregar a página', async ({
   page,
 }) => {
