@@ -6,25 +6,13 @@ import EmptyState from './components/states/EmptyState';
 import ErrorState from './components/states/ErrorState';
 import LoadingState from './components/states/LoadingState';
 import UnitToggle from './components/UnitToggle';
-import { mockWeatherData } from './mocks/weather';
+import useWeather from './hooks/useWeather';
 import type { Unit } from './types/weather';
 
-type AppStatus = 'idle' | 'loading' | 'empty' | 'error' | 'success';
-
-interface AppProps {
-  initialStatus?: AppStatus;
-}
-
-export default function App({ initialStatus = 'success' }: AppProps) {
-  const [status, setStatus] = useState<AppStatus>(initialStatus);
+export default function App() {
+  const { status, data, cities, error, search, selectCity, retry } = useWeather();
   const [unit, setUnit] = useState<Unit>('celsius');
   const mainRef = useRef<HTMLElement>(null);
-
-  function handleSearch(city: string) {
-    const matchesMock =
-      city.localeCompare(mockWeatherData.city.name, 'pt-BR', { sensitivity: 'base' }) === 0;
-    setStatus(matchesMock ? 'success' : 'empty');
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-night-900 via-night-800 to-night-900 [overflow-wrap:anywhere]">
@@ -45,7 +33,7 @@ export default function App({ initialStatus = 'success' }: AppProps) {
               <p className="text-sm text-white/70">Seu dia, com mais clareza.</p>
             </div>
           </div>
-          <SearchBar onSearch={handleSearch} disabled={status === 'loading'} />
+          <SearchBar onSearch={search} disabled={status === 'loading'} />
           <div className="justify-self-start lg:justify-self-end">
             <UnitToggle unit={unit} onChange={setUnit} />
           </div>
@@ -57,55 +45,66 @@ export default function App({ initialStatus = 'success' }: AppProps) {
           tabIndex={-1}
           className="min-w-0 flex-1 space-y-6 py-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 sm:py-8"
         >
-          <p className="text-sm leading-relaxed text-white/70">
-            Demonstração com dados fictícios de {mockWeatherData.city.name}, de 27 a 31/10/2026. A
-            busca reconhece apenas essa cidade; nenhuma API é consultada.
-          </p>
           {status === 'idle' && (
             <EmptyState
               title="Como está o tempo por aí?"
-              hint="Busque São Paulo para explorar o exemplo de clima e previsão."
+              hint={error ?? 'Informe o nome de uma cidade para consultar o clima e a previsão.'}
             />
           )}
           {status === 'loading' && <LoadingState message="Carregando clima e previsão..." />}
           {status === 'empty' && (
             <EmptyState
               title="Nenhuma cidade encontrada."
-              hint="Nesta demonstração, busque São Paulo para visualizar os dados de exemplo."
+              hint="Verifique o nome e tente novamente."
             />
           )}
           {status === 'error' && (
             <ErrorState
-              message="Não foi possível carregar os dados meteorológicos. Tente novamente."
+              message={
+                error ?? 'Não foi possível carregar os dados meteorológicos. Tente novamente.'
+              }
               onRetry={() => {
-                setStatus('success');
+                void retry();
                 mainRef.current?.focus();
               }}
             />
           )}
-          {status === 'success' && (
+          {cities.length > 1 && (
+            <section aria-label="Cidades encontradas" className="flex flex-wrap gap-3">
+              {cities.map((city) => (
+                <button
+                  key={city.id ?? `${city.name}-${city.latitude}-${city.longitude}`}
+                  type="button"
+                  disabled={status === 'loading'}
+                  aria-pressed={
+                    data?.city.latitude === city.latitude && data.city.longitude === city.longitude
+                  }
+                  onClick={() => void selectCity(city)}
+                  className="rounded-xl border border-white/50 bg-white/5 px-4 py-3 text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {[city.name, city.region, city.country].filter(Boolean).join(', ')}
+                </button>
+              ))}
+            </section>
+          )}
+          {status === 'success' && data && (
             <>
-              <CurrentWeather
-                city={mockWeatherData.city}
-                current={mockWeatherData.current}
-                unit={unit}
-              />
+              <CurrentWeather city={data.city} current={data.current} unit={unit} />
               <ForecastList
-                forecast={mockWeatherData.forecast}
+                forecast={data.forecast}
                 unit={unit}
-                isIncomplete={mockWeatherData.forecastIsIncomplete}
+                isIncomplete={data.forecastIsIncomplete}
               />
             </>
           )}
           <p role="status" aria-label="Resultado da busca" aria-atomic="true" className="sr-only">
-            {status === 'empty' &&
-              'Nenhuma cidade encontrada. Nesta demonstração, busque São Paulo.'}
-            {status === 'success' && 'Clima e previsão de São Paulo disponíveis.'}
+            {status === 'empty' && 'Nenhuma cidade encontrada. Verifique o nome e tente novamente.'}
+            {status === 'success' && data && `Clima e previsão de ${data.city.name} disponíveis.`}
           </p>
         </main>
 
         <footer className="flex flex-col gap-2 border-t border-white/10 py-6 text-sm text-white/70 sm:flex-row sm:items-center sm:justify-between">
-          <p>WeatherView · Exemplo para desenvolvimento da UI</p>
+          <p>WeatherView · Clima e previsão</p>
           <a
             href="https://open-meteo.com/"
             className="rounded underline underline-offset-4 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-400"

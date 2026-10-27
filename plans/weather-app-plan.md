@@ -247,16 +247,19 @@ Uma falha de rede, HTTP ou timeout na única chamada afeta ambos os conjuntos de
 
 ## State Management
 
-Etapa temporária de montagem da UI: `App` usa apenas `mockWeatherData` e um
-estado local `status` (`idle/loading/empty/error/success`), iniciado em
-`success`. A prop opcional `initialStatus` permite visualizar e testar cada
-estado sem API nem temporizadores; pode ser alterada na montagem em `main.tsx`.
-A busca local reconhece somente o nome da cidade do mock, sem distinguir
-maiúsculas ou acentos; outros nomes exibem o estado vazio. Retry reapresenta
-o mock. A unidade começa em Celsius e permanece independente do status.
-Essa simulação não substitui a futura orquestração com estados independentes
-descrita abaixo. Bootstrap React e Tailwind global são incluídos nesta etapa
-para permitir validar a tela no Vite e o build de produção.
+Integração atual, conforme solicitação específica: `App` usa `useWeather`
+em `src/hooks/useWeather.ts`, inicia em `idle` e não consulta a API até uma
+ação da pessoa. O hook expõe `status` agregado
+(`idle/loading/empty/error/success`), `data`, `cities`, `error`, `query` e
+as ações `search(name)`, `selectCity(city)` e `retry()`. A busca carrega
+automaticamente a primeira cidade e mantém as opções para seleção explícita.
+Retry repete a última chamada ao serviço, sem retry automático; se o forecast
+falha depois do geocoding, só repete o forecast. Novas operações limpam os
+dados antigos e invalidam respostas pendentes, inclusive após desmontagem.
+Entrada vazia retorna a `idle` com solicitação de nome e sem chamada à rede.
+A unidade permanece no `App`, inicia em Celsius e não dispara requisições.
+O mock é usado somente nos testes. O contrato agregado desta entrega substitui
+temporariamente a proposta de estados independentes abaixo.
 
 O estado da aplicação vive localmente na página, centralizado em `useWeatherApp`; componentes de apresentação não duplicam estado meteorológico e recebem valores/ações por props. Não instalar biblioteca global de estado nem persistir em storage. Busca, clima atual e previsão têm estados assíncronos separados para que um resultado ou erro não bloqueie as outras operações.
 

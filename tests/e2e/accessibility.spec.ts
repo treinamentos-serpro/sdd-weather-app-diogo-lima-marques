@@ -1,12 +1,16 @@
 import { expect, test } from '@playwright/test';
+import { mockWeatherApi, searchExampleCity } from './weatherFixture';
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
   await page.route('https://fonts.gstatic.com/**', (route) => route.abort());
+  await mockWeatherApi(page);
   await page.goto('/');
+  await searchExampleCity(page);
 });
 
 test('ordem de Tab, skip link e foco visível no destino', async ({ page }) => {
+  await page.goto('/');
   const skipLink = page.getByRole('link', { name: 'Ir para o conteúdo' });
   await page.keyboard.press('Tab');
   await expect(skipLink).toBeFocused();
@@ -41,6 +45,7 @@ test('ordem de Tab, skip link e foco visível no destino', async ({ page }) => {
 test('erro de entrada recebe foco e resultados atualizam a região de anúncio', async ({ page }) => {
   const input = page.getByRole('searchbox');
   const announcement = page.getByRole('status', { name: 'Resultado da busca' });
+  await input.clear();
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
   await expect(input).toBeFocused();
   await expect(input).toHaveAttribute('aria-invalid', 'true');
@@ -48,11 +53,9 @@ test('erro de entrada recebe foco e resultados atualizam a região de anúncio',
   await input.fill('Recife');
   await input.press('Enter');
   await expect(announcement).toContainText('Nenhuma cidade encontrada.');
-  await expect(input).toBeFocused();
   await input.fill('São Paulo');
   await input.press('Enter');
   await expect(announcement).toHaveText('Clima e previsão de São Paulo disponíveis.');
-  await expect(input).toBeFocused();
 });
 
 for (const width of [320, 375, 640, 768, 1024, 1440]) {

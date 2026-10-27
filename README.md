@@ -167,29 +167,36 @@ Estados disponíveis em [src/components/states/](src/components/states/):
 - `ErrorState`: `message` e `onRetry`; botão “Tentar novamente”, sem retry automático.
 - `EmptyState`: `title` e `hint`.
 
-## Executando a UI com mock
+## Executando a UI integrada
 
 Execute `pnpm dev` e abra a URL indicada pelo Vite. A tela
-[App](src/App.tsx) inicia em `success`, com header, busca, seletor de unidade,
-hero, cinco cards e atribuição. O bootstrap está em [main](src/main.tsx) e
+[App](src/App.tsx) inicia em `idle`, sem chamadas de rede. Busque uma cidade
+para consultar Open-Meteo: a primeira localidade encontrada é carregada
+automaticamente; quando houver outras opções, selecione a desejada.
+O bootstrap está em [main](src/main.tsx) e
 o Tailwind global em [styles/index.css](src/styles/index.css).
 
-Para inspecionar outros estados, altere temporariamente a montagem em
-`main.tsx`, por exemplo: `<App initialStatus="loading" />`. Valores disponíveis:
-`idle`, `loading`, `empty`, `error` e `success`. No erro, “Tentar novamente”
-reapresenta o mock. Loading desabilita a busca, sem usar temporizadores.
+O hook [useWeather](src/hooks/useWeather.ts) expõe `status`, `data`, `cities`,
+`error`, `query`, `search(name)`, `selectCity(city)` e `retry()`.
+Estados disponíveis: `idle`, `loading`, `empty`, `error` e `success`.
+Busca sem resultado não consulta forecast; entrada vazia não consulta a rede.
+“Tentar novamente” repete a última operação: busca se ela falhou, ou consulta
+meteorológica se já houve seleção. Não há retry automático.
+Loading desabilita a busca e remove dados antigos; respostas obsoletas são
+ignoradas. A unidade é estado da UI e permanece selecionada entre buscas,
+seleções e retries, sem disparar rede. Os mocks são usados apenas nos testes.
 
-A busca é uma simulação local: `São Paulo` (sem distinguir maiúsculas ou
-acentos) mostra o mock; outros nomes mostram vazio. O aviso na tela identifica
-os dados fictícios e suas datas fixas. Não há rede meteorológica, persistência
-ou hook de API nesta etapa. A unidade é estado da UI, inicia em Celsius e
-permanece selecionada ao alternar entre vazio e sucesso, sem alterar o mock.
+O [serviço](src/services/weatherService.ts) usa timeout de 10 segundos,
+incluindo a leitura do JSON. Erros de timeout e rede são expostos como
+`WeatherServiceError`, com “A requisição demorou demais.” e “Falha de rede.”.
+Respostas meteorológicas incompletas são rejeitadas; esta entrega usa status
+agregado e exige cinco dias válidos, sem apresentação parcial.
 
 Os testes de layout em navegador estão em
 [app-layout.spec.ts](tests/e2e/app-layout.spec.ts). Execute
 `pnpm exec playwright test tests/e2e/app-layout.spec.ts --project=chromium`
 para verificar 320/768/1440 px, o grid 2/3/5, ausência de rolagem horizontal
-e troca de unidade com busca local. O Chromium e suas dependências de sistema
+e troca de unidade com APIs interceptadas, sem rede real. O Chromium e suas dependências de sistema
 devem estar instalados (`pnpm exec playwright install --with-deps chromium`).
 
 ## Acessibilidade e responsividade

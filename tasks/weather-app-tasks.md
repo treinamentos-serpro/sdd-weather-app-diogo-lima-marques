@@ -88,6 +88,11 @@ os AC, NFR e MS da especificação sempre que aplicável.
 
 ### T-06 — Implementar serviço de geocodificação
 
+- **Implementação da busca:** `searchCities(name)` em
+  `src/services/weatherService.ts`, com testes em
+  `tests/unit/weatherService.test.ts`. Conforme solicitação específica, o nome
+  é codificado com `encodeURIComponent` em vez de `URLSearchParams`.
+  Cancelamento externo e classificação das falhas permanecem fora desta entrega.
 - **Descrição:** Consultar o endpoint Open-Meteo Geocoding e converter
   respostas válidas em localidades do domínio.
 - **Critérios de aceite:**
@@ -107,6 +112,16 @@ os AC, NFR e MS da especificação sempre que aplicável.
 
 ### T-07 — Implementar serviço meteorológico combinado
 
+- **Implementação desta entrega:** `getWeather(city)` em
+  `src/services/weatherService.ts` consulta `current` e `daily` juntos e retorna
+  exatamente cinco dias. Conforme solicitação específica, seção ausente ou
+  previsão com menos de cinco dias válidos lança `WeatherServiceError`, em vez
+  do resultado parcial previsto abaixo. Inclui probabilidade de precipitação.
+  `fetchWithTimeout` é compartilhado com `searchCities`, cobre também a leitura
+  do JSON e sempre libera o timer no `finally`; timeout produz
+  “A requisição demorou demais.” e falha de rede produz “Falha de rede.”.
+  Cancelamento externo, validação de atualidade e filtragem pelo dia local
+  permanecem fora desta entrega.
 - **Descrição:** Consultar condições atuais e previsão em uma chamada
   Open-Meteo Forecast, validando as seções independentemente.
 - **Critérios de aceite:**
@@ -132,6 +147,14 @@ os AC, NFR e MS da especificação sempre que aplicável.
 
 ### T-08 — Implementar a orquestração da página
 
+- **Implementação desta entrega:** `src/hooks/useWeather.ts` expõe `status`,
+  `data`, `cities`, `error`, `query`, `search`, `selectCity` e `retry`.
+  Conforme solicitação específica, há um status agregado e a primeira cidade
+  é carregada automaticamente. Retry repete a última chamada: geocoding se a
+  busca falhou ou ficou vazia; forecast se já houve seleção. Respostas
+  obsoletas e respostas após desmontagem são ignoradas.
+  `App` usa o hook, inicia em `idle`, oferece seleção das demais cidades e
+  mantém `unit` exclusivamente na UI. O mock permanece apenas para testes.
 - **Descrição:** Criar o hook que coordena busca, seleção, consulta
   meteorológica, retry e unidade.
 - **Critérios de aceite:**
