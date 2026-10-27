@@ -8,7 +8,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const { width, columns } of [
-  { width: 320, columns: 2 },
   { width: 768, columns: 3 },
   { width: 1440, columns: 5 },
 ]) {

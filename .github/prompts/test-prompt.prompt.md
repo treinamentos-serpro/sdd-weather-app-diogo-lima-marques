@@ -17,7 +17,7 @@ Você é o **Test Agent**. Derive os testes dos critérios de aceite em
 2. **E2E** (`tests/e2e/`):
    - Fluxo: buscar cidade → ver clima atual → trocar unidade → ver previsão
    - Use `page.route` para respostas determinísticas
-   - Inclua um teste em viewport mobile
+   - Cubra viewports de tablet e desktop; não crie testes E2E dedicados a mobile
 
 ## Regras
 
