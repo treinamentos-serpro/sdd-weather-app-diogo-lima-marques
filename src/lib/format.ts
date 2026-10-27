@@ -18,6 +18,8 @@ export function formatForecastDay(date: string, locale: string): string {
 }
 
 export function formatTemperature(celsius: number, unit: Unit, locale: string): string {
+  if (!Number.isFinite(celsius)) return 'Indisponível';
+
   const temperature = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,

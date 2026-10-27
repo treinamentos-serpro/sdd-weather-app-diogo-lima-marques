@@ -56,7 +56,19 @@ describe('searchCities', () => {
 
   it('mapeia todos os resultados para City sem inventar campos opcionais', async () => {
     mockResponse({
-      results: [cityResult, { name: 'Outra cidade', latitude: 0, longitude: 0, population: 123 }],
+      results: [
+        cityResult,
+        { name: 'Outra cidade', latitude: 0, longitude: 0, population: 123 },
+        {
+          name: 'Campos opcionais nulos',
+          latitude: 1,
+          longitude: 2,
+          id: null,
+          admin1: null,
+          country: null,
+          country_code: null,
+        },
+      ],
     });
 
     await expect(searchCities('São Paulo')).resolves.toEqual([
@@ -70,6 +82,7 @@ describe('searchCities', () => {
         countryCode: 'BR',
       },
       { name: 'Outra cidade', latitude: 0, longitude: 0 },
+      { name: 'Campos opcionais nulos', latitude: 1, longitude: 2 },
     ]);
   });
 
@@ -113,6 +126,7 @@ describe('searchCities', () => {
       name: 'WeatherServiceError',
       message: 'Falha de rede.',
       cause,
+      kind: 'network',
     });
   });
 
@@ -281,13 +295,50 @@ describe('getWeather', () => {
       current: { ...data.current, precipitation: null },
       daily: { ...data.daily, precipitation_sum: [null, null, null, null, null] },
     });
-
     const result = await getWeather(city);
 
     expect(result.current).not.toHaveProperty('precipitationMm');
     expect(result.forecast).toHaveLength(5);
     for (const day of result.forecast) {
       expect(day).not.toHaveProperty('precipitationMm');
+    }
+  });
+
+  it('omite campos meteorológicos opcionais nulos sem invalidar dados válidos', async () => {
+    const data = forecastResponse();
+    mockResponse({
+      ...data,
+      current: {
+        time: data.current.time,
+        temperature_2m: data.current.temperature_2m,
+        weather_code: null,
+        relative_humidity_2m: null,
+        wind_speed_10m: null,
+        pressure_msl: null,
+        precipitation: null,
+      },
+      daily: {
+        ...data.daily,
+        precipitation_sum: [null, null, null, null, null],
+        precipitation_probability_max: [null, null, null, null, null],
+      },
+    });
+
+    const result = await getWeather(city);
+
+    expect(result.current).toMatchObject({
+      temperatureCelsius: 22.5,
+      condition: 'Condição indisponível',
+    });
+    expect(result.current).not.toHaveProperty('weatherCode');
+    expect(result.current).not.toHaveProperty('humidityPercent');
+    expect(result.current).not.toHaveProperty('windSpeedKmh');
+    expect(result.current).not.toHaveProperty('pressureHpa');
+    expect(result.current).not.toHaveProperty('precipitationMm');
+    expect(result.forecast).toHaveLength(5);
+    for (const day of result.forecast) {
+      expect(day).not.toHaveProperty('precipitationMm');
+      expect(day).not.toHaveProperty('precipitationProbabilityPercent');
     }
   });
 
@@ -581,6 +632,7 @@ describe('fetchWithTimeout', () => {
       name: 'WeatherServiceError',
       message: 'Falha de rede.',
       cause,
+      kind: 'network',
     });
   });
 
@@ -602,6 +654,7 @@ describe('fetchWithTimeout', () => {
     const result = expect(operation()).rejects.toMatchObject({
       name: 'WeatherServiceError',
       message: 'A requisição demorou demais.',
+      kind: 'timeout',
     });
     await vi.advanceTimersByTimeAsync(9_999);
     expect(vi.getTimerCount()).toBe(1);
@@ -618,6 +671,7 @@ describe('fetchWithTimeout', () => {
       name: 'WeatherServiceError',
       message: 'A requisição demorou demais.',
       cause,
+      kind: 'timeout',
     });
   });
 

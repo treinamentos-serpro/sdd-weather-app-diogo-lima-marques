@@ -1,3 +1,4 @@
+import { parseForecastDate } from '../lib/date';
 import { formatForecastDay, formatTemperature } from '../lib/format';
 import { getWeatherCondition } from '../lib/weatherCodes';
 import type { ForecastDay, Unit } from '../types/weather';
@@ -15,11 +16,14 @@ export default function ForecastCard({ day, unit }: ForecastCardProps) {
     Number.isFinite(probability) &&
     probability >= 0 &&
     probability <= 100;
+  const dateIsValid = parseForecastDate(day.date) !== null;
 
   return (
     <article className="h-full min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3 font-sans text-white shadow-glass backdrop-blur-md [overflow-wrap:anywhere] sm:p-4">
       <h3 className="font-semibold">
-        <time dateTime={day.date}>{formatForecastDay(day.date, 'pt-BR')}</time>
+        <time dateTime={dateIsValid ? day.date : undefined}>
+          {dateIsValid ? formatForecastDay(day.date, 'pt-BR') : 'Indisponível'}
+        </time>
       </h3>
       {weather && (
         <span aria-hidden="true" className="mt-4 block text-2xl sm:text-3xl xl:text-4xl">
@@ -27,7 +31,7 @@ export default function ForecastCard({ day, unit }: ForecastCardProps) {
         </span>
       )}
       <p className="mt-3 text-sm text-white/80">
-        {weather ? day.condition : 'Condição indisponível'}
+        {weather ? day.condition || weather.description : 'Condição indisponível'}
       </p>
       <dl className="mt-4 space-y-2">
         <div>

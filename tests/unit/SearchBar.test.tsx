@@ -49,6 +49,20 @@ describe('SearchBar', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('preserva caracteres especiais como texto de busca, sem interpretá-los como HTML', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    const query = `São José-d'Oeste <img src=x onerror=alert(1)>`;
+    const { container } = render(<SearchBar onSearch={onSearch} />);
+    const input = screen.getByRole('searchbox');
+    await user.clear(input);
+    await user.type(input, query);
+    await user.keyboard('{Enter}');
+
+    expect(onSearch).toHaveBeenCalledExactlyOnceWith(query);
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+  });
+
   it('limpa o erro ao corrigir a entrada e permite buscar', async () => {
     const user = userEvent.setup();
     const onSearch = vi.fn();
@@ -69,6 +83,7 @@ describe('SearchBar', () => {
     await user.type(screen.getByRole('searchbox'), 'Recife');
     rerender(<SearchBar onSearch={onSearch} disabled />);
 
+    expect(screen.getByRole('search')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('searchbox')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Buscar' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Buscar' }));
@@ -76,6 +91,7 @@ describe('SearchBar', () => {
     expect(onSearch).not.toHaveBeenCalled();
 
     rerender(<SearchBar onSearch={onSearch} disabled={false} />);
+    expect(screen.getByRole('search')).toHaveAttribute('aria-busy', 'false');
     await user.click(screen.getByRole('button', { name: 'Buscar' }));
     expect(onSearch).toHaveBeenCalledExactlyOnceWith('Recife');
   });

@@ -130,9 +130,9 @@ describe('useWeather', () => {
     expect(getWeather).not.toHaveBeenCalled();
   });
 
-  it('erro de busca não dispara retry automático; retry repete a busca', async () => {
+  it('falha offline na busca não dispara retry automático; retry manual repete a busca', async () => {
     vi.useFakeTimers();
-    vi.mocked(searchCities).mockRejectedValueOnce(new Error('Falha de rede.'));
+    vi.mocked(searchCities).mockRejectedValueOnce(new TypeError('Failed to fetch'));
     const { result } = renderHook(useWeather);
     await act(() => result.current.search('São Paulo'));
 
@@ -168,9 +168,9 @@ describe('useWeather', () => {
     expect(result.current.data?.city).toEqual(otherCity);
   });
 
-  it('retry após falha do carregamento automático não repete o geocoding', async () => {
+  it('retry manual após falha offline do clima não repete o geocoding', async () => {
     vi.useFakeTimers();
-    vi.mocked(getWeather).mockRejectedValueOnce(new Error('Falha de rede.'));
+    vi.mocked(getWeather).mockRejectedValueOnce(new TypeError('Failed to fetch'));
     const { result } = renderHook(useWeather);
     await act(() => result.current.search('São Paulo'));
     await act(() => vi.advanceTimersByTimeAsync(30_000));

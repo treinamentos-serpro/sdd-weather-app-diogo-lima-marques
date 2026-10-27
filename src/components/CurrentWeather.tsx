@@ -50,7 +50,9 @@ export default function CurrentWeather({ city, current, unit }: CurrentWeatherPr
               {formatTemperature(current.temperatureCelsius, unit, 'pt-BR')}
             </p>
           </div>
-          <p className="mt-3 text-lg">{weather ? current.condition : 'Condição indisponível'}</p>
+          <p className="mt-3 text-lg">
+            {weather ? current.condition || weather.description : 'Condição indisponível'}
+          </p>
           <dl className="mt-8 grid grid-cols-1 gap-4 min-[400px]:grid-cols-2 lg:grid-cols-4">
             {metrics.map(({ label, value, suffix }) => (
               <div key={label} className="min-w-0 rounded-xl border border-white/10 bg-white/5 p-3">

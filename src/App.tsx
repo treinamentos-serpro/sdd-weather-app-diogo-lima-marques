@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CurrentWeather from './components/CurrentWeather';
 import ForecastList from './components/ForecastList';
 import SearchBar from './components/SearchBar';
@@ -13,10 +13,21 @@ export default function App() {
   const { status, data, cities, error, search, selectCity, retry } = useWeather();
   const [unit, setUnit] = useState<Unit>('celsius');
   const mainRef = useRef<HTMLElement>(null);
+  const focusResultsAfterSearch = useRef(false);
+  const handleSearch = (city: string) => {
+    focusResultsAfterSearch.current = true;
+    search(city);
+  };
   const retryWeather = () => {
     void retry();
     mainRef.current?.focus();
   };
+
+  useEffect(() => {
+    if (status === 'loading' || !focusResultsAfterSearch.current) return;
+    focusResultsAfterSearch.current = false;
+    mainRef.current?.focus();
+  }, [status]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-night-900 via-night-800 to-night-900 [overflow-wrap:anywhere]">
@@ -37,7 +48,7 @@ export default function App() {
               <p className="text-sm text-white/70">Seu dia, com mais clareza.</p>
             </div>
           </div>
-          <SearchBar onSearch={search} disabled={status === 'loading'} />
+          <SearchBar onSearch={handleSearch} disabled={status === 'loading'} />
           <div className="justify-self-start lg:justify-self-end">
             <UnitToggle unit={unit} onChange={setUnit} />
           </div>
@@ -47,6 +58,7 @@ export default function App() {
           ref={mainRef}
           id="weather-content"
           tabIndex={-1}
+          aria-busy={status === 'loading'}
           className="min-w-0 flex-1 space-y-6 py-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 sm:py-8"
         >
           {status === 'idle' && (
@@ -81,7 +93,7 @@ export default function App() {
                     data?.city.latitude === city.latitude && data.city.longitude === city.longitude
                   }
                   onClick={() => void selectCity(city)}
-                  className="rounded-xl border border-white/50 bg-white/5 px-4 py-3 text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl border border-white/50 bg-white/5 px-4 py-3 text-white transition-colors enabled:hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {[city.name, city.region, city.country].filter(Boolean).join(', ')}
                 </button>

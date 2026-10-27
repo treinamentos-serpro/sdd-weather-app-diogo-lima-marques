@@ -72,6 +72,20 @@ describe('ForecastCard', () => {
     expect(screen.getByText('Condição indisponível')).toBeInTheDocument();
     expect(screen.queryByText('⛅')).not.toBeInTheDocument();
   });
+
+  it('usa fallbacks para temperaturas não finitas e condição vazia', () => {
+    const { container } = render(
+      <ForecastCard
+        day={{ ...day, minCelsius: NaN, maxCelsius: Infinity, condition: '' }}
+        unit="celsius"
+      />,
+    );
+
+    expect(screen.getByText('Mínima').nextElementSibling).toHaveTextContent('Indisponível');
+    expect(screen.getByText('Máxima').nextElementSibling).toHaveTextContent('Indisponível');
+    expect(screen.getByText('Parcialmente nublado')).toBeInTheDocument();
+    expect(container).not.toHaveTextContent(/\b(?:NaN|Infinity|undefined)\b/);
+  });
 });
 
 describe('ForecastList', () => {

@@ -72,6 +72,8 @@ describe('App integrado ao useWeather', () => {
     render(<App />);
     await user.type(screen.getByRole('searchbox'), 'Cidade{Enter}');
 
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('search')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText('Carregando clima e previsão...')).toHaveAttribute('role', 'status');
     expect(screen.getByRole('searchbox')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Buscar' })).toBeDisabled();
@@ -195,6 +197,8 @@ describe('App integrado ao useWeather', () => {
     await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
 
     expect(await screen.findByText('23,5 °C')).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
     expect(
       screen.getByText('Previsão incompleta. Alguns dias estão indisponíveis.'),

@@ -53,7 +53,27 @@ test('busca cidade, mostra cinco dias e converte as temperaturas para Fahrenheit
   ]);
 });
 
-test('mostra estado vazio quando o geocoding retorna um objeto sem results', async ({ page }) => {
+test('valida entrada vazia ou só com espaços sem chamar geocoding', async ({ page }) => {
+  const geocodingRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().startsWith('https://geocoding-api.open-meteo.com/')) {
+      geocodingRequests.push(request.url());
+    }
+  });
+  await page.goto('/');
+  const input = page.getByRole('searchbox', { name: 'Nome da cidade' });
+
+  for (const value of ['', '   ']) {
+    await input.fill(value);
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('alert')).toHaveText('Informe o nome de uma cidade.');
+    await expect(page.getByRole('searchbox')).toBeFocused();
+  }
+
+  expect(geocodingRequests).toEqual([]);
+});
+
+test('mostra estado vazio quando o geocoding retorna results vazio', async ({ page }) => {
   const forecastRequests: string[] = [];
   page.on('request', (request) => {
     if (request.url().startsWith('https://api.open-meteo.com/')) {
@@ -61,7 +81,7 @@ test('mostra estado vazio quando o geocoding retorna um objeto sem results', asy
     }
   });
   await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
-    route.fulfill({ json: {} }),
+    route.fulfill({ json: { results: [] } }),
   );
   await page.goto('/');
   await page.getByRole('searchbox', { name: 'Nome da cidade' }).fill('Cidade inexistente');
@@ -71,8 +91,36 @@ test('mostra estado vazio quando o geocoding retorna um objeto sem results', asy
   await expect(page.getByRole('status', { name: 'Resultado da busca' })).toContainText(
     'Nenhuma cidade encontrada.',
   );
+  await expect(page.getByRole('main')).toBeFocused();
   await expect(page.getByRole('region', { name: 'Previsão de 5 dias' })).toHaveCount(0);
   expect(forecastRequests).toEqual([]);
+});
+
+test('preserva caracteres especiais como texto e envia a busca codificada', async ({ page }) => {
+  const query = `São José-d'Oeste <img src=x onerror=alert(1)>`;
+  let requestedName: string | null = null;
+  await page.route('https://geocoding-api.open-meteo.com/**', (route) => {
+    requestedName = new URL(route.request().url()).searchParams.get('name');
+    return route.fulfill({
+      json: {
+        results: [
+          {
+            id: 1,
+            name: query,
+            latitude: -23.55,
+            longitude: -46.63,
+          },
+        ],
+      },
+    });
+  });
+  await page.goto('/');
+  await page.getByRole('searchbox').fill(` ${query} `);
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+  await expect(page.getByRole('region', { name: `Clima atual em ${query}` })).toBeVisible();
+  expect(requestedName).toBe(query);
+  await expect(page.locator('img')).toHaveCount(0);
 });
 
 test('renderiza clima e previsão após buscar em viewport mobile de 375x812', async ({ page }) => {

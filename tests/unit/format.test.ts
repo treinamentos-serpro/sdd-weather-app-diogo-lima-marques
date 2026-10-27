@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatForecastDay } from '../../src/lib/format';
+import { formatForecastDay, formatTemperature } from '../../src/lib/format';
 
 describe('formatForecastDay', () => {
   it.each([
@@ -27,5 +27,12 @@ describe('formatForecastDay', () => {
     '2026-13-01',
   ])('rejeita data inválida %j com RangeError', (date) => {
     expect(() => formatForecastDay(date, 'pt-BR')).toThrow(RangeError);
+  });
+});
+
+describe('formatTemperature', () => {
+  it.each([NaN, Infinity, -Infinity])('não exibe temperatura não finita (%s)', (value) => {
+    expect(formatTemperature(value, 'celsius', 'pt-BR')).toBe('Indisponível');
+    expect(formatTemperature(value, 'fahrenheit', 'pt-BR')).toBe('Indisponível');
   });
 });
